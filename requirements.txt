@@ -1,0 +1,7 @@
+sentence-transformers
+faiss-cpu
+numpy
+openai
+matplotlib
+yfinance
+pandas 
