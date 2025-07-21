@@ -9,8 +9,8 @@ from openai import OpenAI
 client = OpenAI()
 
 # Define file paths
-INDEX_FILE = 'icom/zebra_support.index'
-PASSAGES_FILE = 'icom/passages.json'
+INDEX_FILE = 'data/zebra_support.index'
+PASSAGES_FILE = 'data/passages.json'
 
 # 1. Load the FAISS index and passages
 print("Loading FAISS index and passages...")

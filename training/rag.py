@@ -6,9 +6,9 @@ import numpy as np
 import os
 
 # Define file paths
-QA_FILE = 'icom/zebra_support_qa.json'
-INDEX_FILE = 'icom/zebra_support.index'
-PASSAGES_FILE = 'icom/passages.json'
+QA_FILE = 'data/zebra_support_qa.json'
+INDEX_FILE = 'data/zebra_support.index'
+PASSAGES_FILE = 'data/passages.json'
 
 # 1. Load your manual
 with open(QA_FILE, 'r', encoding='utf-8') as f:

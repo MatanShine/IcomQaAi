@@ -32,21 +32,21 @@ This project implements a Retrieval-Augmented Generation (RAG) chatbot that answ
     First, you need to process the knowledge base and create the necessary index files. Run the following command from the root of the project:
 
     ```bash
-    python3 -m icom.rag
+    python3 -m training.rag
     ```
 
     This script will:
-    -   Load the data from `icom/zebra_support_qa.json`.
+    -   Load the data from `data/zebra_support_qa.json`.
     -   Generate embeddings for the text passages using a sentence-transformer model.
-    -   Create a FAISS index and save it to `icom/zebra_support.index`.
-    -   Save the passages to `icom/passages.json`.
+    -   Create a FAISS index and save it to `data/zebra_support.index`.
+    -   Save the passages to `data/passages.json`.
 
 2.  **Start the chatbot:**
 
     Once the index is created, you can start the interactive chatbot:
 
     ```bash
-    python3 -m icom.chatbot
+    python3 -m chatbot.chatbot
     ```
 
     The chatbot will load the index and passages, and you can start asking questions in the terminal. To exit, type `exit` or `quit`.
