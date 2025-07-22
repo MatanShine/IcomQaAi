@@ -4,8 +4,36 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 from openai import OpenAI
+from dotenv import load_dotenv
+import os
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
-# Initialize OpenAI client
+# --- Explicitly find and load the .env file from the project root ---
+# Get the directory of the current script (e.g., /path/to/project/chatbot)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory (the project root)
+project_root = os.path.dirname(script_dir)
+# Construct the full path to the .env file
+dotenv_path = os.path.join(project_root, '.env')
+print(f"--- Attempting to load .env file from: {dotenv_path}")
+
+# Load the .env file from the specified path
+if os.path.exists(dotenv_path):
+    print("--- .env file found. Loading variables...")
+    load_dotenv(dotenv_path=dotenv_path)
+    # --- Debugging: Check if the key is loaded ---
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        print("--- OPENAI_API_KEY loaded successfully.")
+    else:
+        print("--- WARNING: OPENAI_API_KEY not found in .env file.")
+    # -----------------------------------------
+else:
+    print("--- Warning: .env file not found.")
+# -------------------------------------------------------------------
+
+# Initialize OpenAI client (it will automatically find the key)
 client = OpenAI()
 
 # Define file paths
@@ -67,19 +95,35 @@ If you don’t know the answer, say “I’m not sure—I couldn’t find that i
     except Exception as e:
         return f"An error occurred while contacting the language model: {e}"
 
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json()
+    user_message = data.get('message', '')
+    if not user_message:
+        return jsonify({'error': 'No message provided'}), 400
+    response = answer_query(user_message)
+    return jsonify({'response': response})
+
 # 4. Simple loop
 if __name__ == "__main__":
-    print("Bot: Hi there! What can I help you with today?")
-    while True:
-        try:
-            q = input("You: ")
-            if q.lower() in {"exit", "quit"}:
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == 'api':
+        app.run(host='0.0.0.0', port=5050, debug=True)
+    else:
+        print("Bot: Hi there! What can I help you with today?")
+        while True:
+            try:
+                q = input("You: ")
+                if q.lower() in {"exit", "quit"}:
+                    print("Bot: Goodbye!")
+                    break
+                print("Bot:", answer_query(q))
+            except EOFError:
                 print("Bot: Goodbye!")
                 break
-            print("Bot:", answer_query(q))
-        except EOFError:
-            print("Bot: Goodbye!")
-            break
-        except KeyboardInterrupt:
-            print("\nBot: Goodbye!")
-            break
+            except KeyboardInterrupt:
+                print("\nBot: Goodbye!")
+                break
