@@ -1,4 +1,4 @@
-# ProBanking - RAG Chatbot
+# IcomQaAi - RAG Chatbot
 
 This project implements a Retrieval-Augmented Generation (RAG) chatbot that answers questions based on a provided knowledge base. The chatbot uses a sentence-transformer model to embed text, FAISS for efficient similarity search, and a large language model (LLM) to generate answers.
 
