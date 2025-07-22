@@ -1,4 +1,9 @@
 sentence-transformers
 faiss-cpu
 numpy
-openai 
+openai
+python-dotenv 
+Flask 
+Flask-CORS 
+youtube-transcript-api
+google-api-python-client 
