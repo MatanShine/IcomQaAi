@@ -50,3 +50,20 @@ This project implements a Retrieval-Augmented Generation (RAG) chatbot that answ
     ```
 
     The chatbot will load the index and passages, and you can start asking questions in the terminal. To exit, type `exit` or `quit`.
+
+3.  **Run the API server:**
+
+    Start the API version of the chatbot:
+
+    ```bash
+    python chatbot/chatbot.py api
+    ```
+
+4.  **Launch the web interface:**
+
+    Run the PHP built-in server from the `web` directory:
+
+    ```bash
+    cd web
+    php -S localhost:8080
+    ```
