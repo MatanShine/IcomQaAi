@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_KEY = os.getenv('YOUTUBE_API_KEY') or 'YOUR_API_KEY_HERE'
-CHANNEL_ID = 'UCFpIiS_uu-XD-vtg0U-asyg'
+CHANNEL_ID = 'UCFpIiS_uu-XD-vtg0U-asyg' # Zebra CRM youtube channel
 
 def get_all_video_ids(youtube, channel_id):
     video_ids = []
@@ -34,19 +34,12 @@ def fetch_transcript(video_id):
     """Return transcript text for the given video or None if unavailable."""
     print(f"  Fetching transcript for {video_id}…")
     try:
-        tl = YouTubeTranscriptApi.list_transcripts(video_id)
-        transcript = tl.find_transcript(['en']).fetch()
-        text = " ".join(seg["text"] for seg in transcript)
-        print(f"  → fetched {len(transcript)} segments")
+        ytt_api = YouTubeTranscriptApi()
+        fetched_transcript = ytt_api.fetch(video_id, ['iw', 'en'])
+        text = ' '.join([snippet.text for snippet in fetched_transcript])
         return text
     except (TranscriptsDisabled, NoTranscriptFound) as e:
         print(f"  → no transcript: {e}")
-        try:
-            tl = YouTubeTranscriptApi.list_transcripts(video_id)
-            langs = [t.language_code for t in tl]
-            print(f"  → available languages: {langs}")
-        except Exception as e2:
-            print(f"  → could not list transcripts: {e2}")
         return None
     except Exception as e:
         print(f"  → error fetching transcript: {e}")
