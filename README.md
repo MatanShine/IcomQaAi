@@ -32,7 +32,7 @@ This project implements a Retrieval-Augmented Generation (RAG) chatbot that answ
     First, you need to process the knowledge base and create the necessary index files. Run the following command from the root of the project:
 
     ```bash
-    python3 -m training.rag
+    python -m training.rag
     ```
 
     This script will:

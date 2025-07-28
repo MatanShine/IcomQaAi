@@ -2,8 +2,11 @@ sentence-transformers
 faiss-cpu
 numpy
 openai
-python-dotenv 
-Flask 
-Flask-CORS 
+python-dotenv
+Flask
+Flask-CORS
 youtube-transcript-api
-google-api-python-client 
+google-api-python-client
+requests
+beautifulsoup4 
+playwright
