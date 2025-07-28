@@ -80,6 +80,8 @@
 </div>
 <script>
 const chatLog = document.getElementById('chat-log');
+// Keep conversation history (alternating user and bot messages)
+const history = [];
 const chatForm = document.getElementById('chat-form');
 const chatInput = document.getElementById('chat-input');
 
@@ -110,17 +112,21 @@ chatForm.addEventListener('submit', async function(e) {
     appendMessage(userMsg, 'user');
     chatInput.value = '';
     appendMessage('...טוען תשובה', 'bot');
+    // Store user message in local history (before we know the bot reply)
+    history.push(userMsg);
     try {
         const res = await fetch('http://localhost:5050/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMsg })
+            body: JSON.stringify({ message: userMsg, history })
         });
         const data = await res.json();
         // Remove loading message
         chatLog.removeChild(chatLog.lastChild);
         if (data.response) {
             appendMessage(data.response, 'bot');
+            // Store assistant reply in history
+            history.push(data.response);
         } else {
             appendMessage('שגיאה בקבלת תשובה מהשרת.', 'bot');
         }

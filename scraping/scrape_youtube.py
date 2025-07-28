@@ -1,87 +1,58 @@
 import os
-import json
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from .base_scraper import BaseScraper
 from dotenv import load_dotenv
 
-# Load .env if exists
-load_dotenv()
+class YoutubeScraper(BaseScraper):
+    __channel_id = 'UCFpIiS_uu-XD-vtg0U-asyg' # Zebra CRM youtube channel
 
-API_KEY = os.getenv('YOUTUBE_API_KEY') or 'YOUR_API_KEY_HERE'
-CHANNEL_ID = 'UCFpIiS_uu-XD-vtg0U-asyg' # Zebra CRM youtube channel
+    def __init__(self, base_url: str, data_path: str, logger):
+        super().__init__(base_url, data_path, logger)
+        load_dotenv()
+        self.youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
 
-def get_all_video_ids(youtube, channel_id):
-    video_ids = []
-    next_page_token = None
-    while True:
-        req = youtube.search().list(
-            channelId=channel_id,
-            part='id',
-            maxResults=50,
-            order='date',
-            type='video',
-            pageToken=next_page_token
-        )
+    def get_urls(self):
+        urls = set()
+        next_page_token = None
+        while True:
+            req = self.youtube.search().list(
+                channelId=self.__channel_id,
+                part='id',
+                maxResults=50,
+                order='date',
+                type='video',
+                pageToken=next_page_token
+            )
+            res = req.execute()
+            for item in res['items']:
+                id = item['id']['videoId']
+                urls.add(f"https://www.youtube.com/watch?v={id}")
+            next_page_token = res.get('nextPageToken')
+            if not next_page_token:
+                break
+        self.logger.info(f"Found {len(urls)} videos.")
+        return urls
+
+    def get_answer(self, url):
+        """Return transcript text for the given video or None if unavailable."""
+        video_id = url.split("=")[1]
+        self.logger.info(f"Fetching transcript for {video_id}…")
+        
+        try:
+            ytt_api = YouTubeTranscriptApi()
+            fetched_transcript = ytt_api.fetch(video_id, ['iw', 'en'])
+            text = ' '.join([snippet.text for snippet in fetched_transcript])
+            return text
+        except (TranscriptsDisabled, NoTranscriptFound) as e:
+            self.logger.info(f"  → no transcript: {e}")
+            return ""
+        except Exception as e:
+            self.logger.info(f"  → error fetching transcript: {e}")
+            return ""
+
+    def get_question(self, url):
+        req = self.youtube.videos().list(part='snippet', id=url.split("=")[1])
         res = req.execute()
-        for item in res['items']:
-            video_ids.append(item['id']['videoId'])
-        next_page_token = res.get('nextPageToken')
-        if not next_page_token:
-            break
-    return video_ids
-
-def fetch_transcript(video_id):
-    """Return transcript text for the given video or None if unavailable."""
-    print(f"  Fetching transcript for {video_id}…")
-    try:
-        ytt_api = YouTubeTranscriptApi()
-        fetched_transcript = ytt_api.fetch(video_id, ['iw', 'en'])
-        text = ' '.join([snippet.text for snippet in fetched_transcript])
-        return text
-    except (TranscriptsDisabled, NoTranscriptFound) as e:
-        print(f"  → no transcript: {e}")
-        return None
-    except Exception as e:
-        print(f"  → error fetching transcript: {e}")
-        return None
-
-def main():
-    if API_KEY == 'YOUR_API_KEY_HERE':
-        print('Please set your YOUTUBE_API_KEY in the environment or script.')
-        return
-    youtube = build('youtube', 'v3', developerKey=API_KEY)
-    channel_id = CHANNEL_ID
-    print(f'Channel ID: {channel_id}')
-    video_ids = get_all_video_ids(youtube, channel_id)
-    print(f'Found {len(video_ids)} videos.')
-    # Load existing data
-    data_path = os.path.join(os.path.dirname(__file__), '../data/zebra_support_qa.json')
-    with open(data_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    # For each video, fetch transcript and append
-    for vid in video_ids:
-        url = f'https://www.youtube.com/watch?v={vid}'
-        print(f'Processing {url}...')
-        text = fetch_transcript(vid)
-        if not text:
-            print('No transcript found, skipping.')
-            continue
-        # Get video title
-        req = youtube.videos().list(part='snippet', id=vid)
-        res = req.execute()
-        title = res['items'][0]['snippet']['title'] if res['items'] else 'YouTube Video'
-        # Format as existing data
-        entry = {
-            'question': f'מה יש בסרטון: {title}?',
-            'text': text,
-            'url': url
-        }
-        data.append(entry)
-        print('Added.')
-    # Save back
-    with open(data_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    print('Done.')
-
-if __name__ == '__main__':
-    main() 
+        title = res['items'][0]['snippet']['title'] if res['items'] else ""
+        return title
