@@ -49,8 +49,31 @@ class BaseScraper(ABC):
             Optional[str]: The extracted answer or None if not found.
         """
         pass
+
+    def __get_data_from_json(self) -> int:
+        """
+        Get data from a JSON file with the data collected from the URLs.
+        
+        Args:
+            data_path (str): Path to the JSON file where data will be saved.
+                            Will be created if it doesn't exist.
+        """
+        try:
+            with open(self.data_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data
+        except FileNotFoundError:
+            os.makedirs(os.path.dirname(self.data_path) or '.', exist_ok=True)
+            return []
+
+    def __find_urls_to_process(self, data: list) -> Set[str]:
+        existing_urls = {d['url'] for d in data if self.base_url in d['url']}
+        urls = self.get_urls() - existing_urls
+        
+        self.logger.info(f"Found {len(urls)} URLs to process")
+        return urls
     
-    def run(self) -> int:
+    def __add_new_data(self, data: list) -> int:
         """
         Run the scraper, collecting data from all URLs and saving to the specified path.
         
@@ -58,19 +81,8 @@ class BaseScraper(ABC):
             data_path (str): Path to the JSON file where data will be saved.
                             Will be created if it doesn't exist.
         """
-        # Load existing data if file exists
-        if os.path.exists(self.data_path):
-            with open(self.data_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        else:
-            data = []
-            os.makedirs(os.path.dirname(self.data_path) or '.', exist_ok=True)
-        existing_urls = {d['url'] for d in data if self.base_url in d['url']}
 
-        urls = self.get_urls() - existing_urls
-        
-        self.logger.info(f"Found {len(urls)} URLs to process")
-        
+        urls = self.__find_urls_to_process(data)
         for i, url in enumerate(urls, 1):
             self.logger.info(f"[{i}/{len(urls)}] Processing: {url}")
             
@@ -86,9 +98,35 @@ class BaseScraper(ABC):
                 self.logger.info(f"  ✓ Successfully processed")
             except Exception as e:
                 self.logger.info(f"  ✗ Error processing {url}: {str(e)}")
-        
+        return data
+    
+    def __save_json(self, data: list, added_items: int) -> None:
         with open(self.data_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
             
-        self.logger.info(f"\nProcessing complete. Added {len(urls)} new items. Total items: {len(data)}")
-        return len(urls)
+        self.logger.info(f"\nProcessing complete. Added {added_items} new items. Total items: {len(data)}")
+
+    def rewrite_json(self) -> int:
+        """
+        Run the scraper, collecting data from all URLs and saving to the specified path.
+        
+        Args:
+            data_path (str): Path to the JSON file where data will be saved.
+                            Will be created if it doesn't exist.
+        """
+        data = self.__add_new_data([])
+        self.__save_json(data, len(data))
+        return len(data)
+    
+    def add_data_to_existing_json(self) -> int:
+        """
+        Run the scraper, collecting data from all URLs and saving to the specified path.
+        
+        Args:
+            data_path (str): Path to the JSON file where data will be saved.
+                            Will be created if it doesn't exist.
+        """
+        data = self.__get_data_from_json()
+        data = self.__add_new_data(data)
+        self.__save_json(data, len(data))
+        return len(data)

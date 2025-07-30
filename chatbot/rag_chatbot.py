@@ -1,12 +1,12 @@
 import json
 import logging
-from typing import Dict, List, Any
+from typing import List
 import os
 import faiss
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from dotenv import load_dotenv
-
+from constants.constants import EMBEDDINGS_MODEL
 
 SYSTEM_INSTRUCTION = """
 You are a helpful customer support assistant for ZebraCRM (זברה). Use ONLY the provided context passages 
@@ -47,13 +47,13 @@ class RAGChatbot:
         index_path: str,
         passages_path: str,
         logger = logging.getLogger("CSChatbot"),
-        model_name: str = 'imvladikon/sentence-transformers-alephbert',
+        model: str = EMBEDDINGS_MODEL,
         max_history_messages: int = 6,
-        top_k: int = 5,
+        top_k: int = 10,
     ):
         self.logger = logger
         self.logger.info("Loading embedding model...")
-        self.model = SentenceTransformer(model_name)
+        self.model = SentenceTransformer(model)
         self.logger.info("Loading FAISS index...")
         self.index = faiss.read_index(index_path)
         with open(passages_path, 'r', encoding='utf-8') as f:
