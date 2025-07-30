@@ -21,11 +21,18 @@ class RAGTrainer:
 
     def run(self):
         self.logger.info("Loading model...")
-        model = SentenceTransformer('imvladikon/sentence-transformers-alephbert')
+        model = SentenceTransformer("intfloat/multilingual-e5-base")
         self.logger.info("Encoding passages...")
-        embs = model.encode(self.passages, convert_to_numpy=True, show_progress_bar=True)
+        def build_passage(item):
+            t = item.get("title", "")
+            q = item.get("question", "")
+            a = item.get("answer", "")
+            return f"passage: {t}\nשאלה: {q}\nתשובה: {a}"
 
-        # Build and save FAISS index
+        passages_text = [build_passage(it) for it in self.passage_data]
+
+        embs = model.encode(passages_text, convert_to_numpy=True, show_progress_bar=True, normalize_embeddings=True)
+
         self.logger.info("Building FAISS index...")
         index = faiss.IndexFlatIP(embs.shape[1])
         faiss.normalize_L2(embs)
