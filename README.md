@@ -1,69 +1,54 @@
-# IcomQaAi - RAG Chatbot
+# IcomQaAi
 
-This project implements a Retrieval-Augmented Generation (RAG) chatbot that answers questions based on a provided knowledge base. The chatbot uses a sentence-transformer model to embed text, FAISS for efficient similarity search, and a large language model (LLM) to generate answers.
+FastAPI-based service exposing a retrieval augmented generation (RAG) chatbot.
+The project scrapes knowledge sources, stores them in PostgreSQL and builds a
+FAISS index used to answer questions.
 
-## Setup
+## Project layout
 
-1.  **Create and activate a virtual environment:**
+```
+IcomQaAi/
+├── app/
+│   ├── main.py                 # FastAPI app
+│   ├── api/v1/endpoints.py     # HTTP endpoints
+│   ├── core/config.py          # configuration via pydantic
+│   ├── models/db.py            # SQLAlchemy models and session
+│   ├── schemas/api.py          # request/response models
+│   └── services/               # business logic, scrapers and training
+│       └── ...
+├── tests/                      # pytest based tests
+│   └── test_endpoints.py
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
 
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    ```
+## Development
 
-2.  **Install the required dependencies:**
+1. Install dependencies:
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-3.  **Set up your OpenAI API key:**
+2. Set the required environment variables:
 
-    Make sure you have an OpenAI API key. You can set it as an environment variable:
+   ```bash
+   export DATABASE_URL=postgresql://user:password@localhost:5432/icom
+   export OPENAI_API_KEY=your-key
+   export YOUTUBE_API_KEY=your-key
+   ```
 
-    ```bash
-    export OPENAI_API_KEY='your-openai-api-key'
-    ```
+3. Run the server:
 
-## Running the Project
+   ```bash
+   uvicorn app.main:app --reload
+   ```
 
-1.  **Generate the FAISS index and passages:**
+## Tests
 
-    First, you need to process the knowledge base and create the necessary index files. Run the following command from the root of the project:
+Execute the test-suite with:
 
-    ```bash
-    python -m training.rag
-    ```
-
-    This script will:
-    -   Load the data from `data/zebra_support_qa.json`.
-    -   Generate embeddings for the text passages using a sentence-transformer model.
-    -   Create a FAISS index and save it to `data/zebra_support.index`.
-    -   Save the passages to `data/passages.json`.
-
-2.  **Start the chatbot:**
-
-    Once the index is created, you can start the interactive chatbot:
-
-    ```bash
-    python3 -m chatbot.chatbot
-    ```
-
-    The chatbot will load the index and passages, and you can start asking questions in the terminal. To exit, type `exit` or `quit`.
-
-3.  **Run the API server:**
-
-    Start the API version of the chatbot:
-
-    ```bash
-    python chatbot/chatbot.py api
-    ```
-
-4.  **Launch the web interface:**
-
-    Run the PHP built-in server from the `web` directory:
-
-    ```bash
-    cd web
-    php -S localhost:8080
-    ```
+```bash
+pytest
+```
