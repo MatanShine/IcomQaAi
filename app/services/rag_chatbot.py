@@ -1,69 +1,48 @@
 import json
 import logging
-from typing import List
 import os
+from typing import List
+
 import faiss
-from sentence_transformers import SentenceTransformer
-from openai import OpenAI
 from dotenv import load_dotenv
-from constants.constants import EMBEDDINGS_MODEL
+from openai import OpenAI
+from sentence_transformers import SentenceTransformer
+
+from app.core.config import settings
 
 SYSTEM_INSTRUCTION = """
-You are a helpful customer support assistant for ZebraCRM (זברה). Use ONLY the provided context passages 
+You are a helpful customer support assistant for ZebraCRM (זברה). Use ONLY the provided context passages
 to answer the user's question as concisely as possible.
-Provide the source URL if it's available in the context. 
-Answer in Hebrew if the question is in Hebrew and the context is in Hebrew; otherwise respond appropriately. 
+Provide the source URL if it's available in the context.
+Answer in Hebrew if the question is in Hebrew and the context is in Hebrew; otherwise respond appropriately.
 If the answer is not in the context, say "I don't know—I couldn't find that in the manual. Would you like to contact support?"(translated to Hebrew if asked in hebrew)
 """
 
+
 class RAGChatbot:
-    """
-    Retrieval-Augmented Generation chatbot that serves multiple users concurrently.
-
-    Workflow per user message:
-        1. Embed the user query.
-        2. Retrieve top-k most relevant passages from FAISS index.
-        3. Build a prompt that includes conversation history () + retrieved context.
-        4. Call an LLM function to generate the answer.
-
-    Parameters
-    ----------
-    index_path : str
-        Path to FAISS index built by RAGTrainer.
-    passages_path : str
-        Path to JSON containing passage metadata (text/question/url).
-    logger : logging.Logger
-        Logger for logging messages.
-    model_name : str
-        SentenceTransformer model name for embedding queries.
-    max_history_messages : int
-        Number of most recent user+assistant messages to retain in prompt.
-    top_k : int
-        Number of most relevant passages to retrieve.
-    """
+    """Retrieval-Augmented Generation chatbot that serves multiple users concurrently."""
 
     def __init__(
         self,
         index_path: str,
         passages_path: str,
-        logger = logging.getLogger("CSChatbot"),
-        model: str = EMBEDDINGS_MODEL,
+        logger: logging.Logger = logging.getLogger("CSChatbot"),
+        model: str = settings.embeddings_model,
         max_history_messages: int = 6,
         top_k: int = 10,
-    ):
+    ) -> None:
         self.logger = logger
         self.logger.info("Loading embedding model...")
         self.model = SentenceTransformer(model)
         self.logger.info("Loading FAISS index...")
         self.index = faiss.read_index(index_path)
-        with open(passages_path, 'r', encoding='utf-8') as f:
+        with open(passages_path, "r", encoding="utf-8") as f:
             self.passages = json.load(f)
-        self.passage_texts = [p['text'] for p in self.passages]
+        self.passage_texts = [p["text"] for p in self.passages]
         self.logger.info("Index and passages loaded.")
 
         self.logger.info("Loading OpenAI API key...")
         load_dotenv()
-        # --- Debugging: Check if the key is loaded ---
         api_key = os.getenv("OPENAI_API_KEY")
         if api_key:
             self.logger.info("OPENAI_API_KEY loaded successfully.")
@@ -78,12 +57,10 @@ class RAGChatbot:
 
     # ----------------------- Public API -----------------------
 
-    def chat(self, message: str, history: List[str] = []) -> str:
-        """
-        Process a chat message for a given user and return the model's answer.
+    def chat(self, message: str, history: List[str] | None = None) -> str:
+        """Process a chat message for a given user and return the model's answer."""
 
-        This method is thread-safe and can be called concurrently for different users.
-        """
+        history = history or []
         self.logger.debug(f"User message: {message}")
 
         # Retrieve relevant documents
@@ -93,23 +70,18 @@ class RAGChatbot:
         prompt = self.build_prompt(history, message, retrieved)
         try:
             response = self.llm.chat.completions.create(
-              model="gpt-4o-mini",
-              messages=[{"role":"user","content":prompt}],
-              max_tokens=400,
-              temperature=0.2,
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=400,
+                temperature=0.2,
             )
             return response.choices[0].message.content.strip()
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - network errors
             return f"An error occurred while contacting the language model: {e}"
 
     def build_prompt(self, history: List[str], new_message: str, context_text: str) -> str:
-        """
-        Construct a prompt for the LLM:
-          - System instruction
-          - Recent conversation history
-          - Retrieved context
-          - The user's question
-        """
+        """Construct a prompt for the LLM."""
+
         history_text = ""
         for i in range(min(len(history), self.max_history_messages)):
             msg = history[i]
@@ -127,6 +99,7 @@ class RAGChatbot:
 
     def retrieve_contexts(self, query: str) -> str:
         """Embed query, search FAISS, and return top_k passages."""
+
         query_emb = self.model.encode([query], convert_to_numpy=True)
         faiss.normalize_L2(query_emb)
         scores, idxs = self.index.search(query_emb, self.top_k)
@@ -134,8 +107,12 @@ class RAGChatbot:
         retrieved_contexts = []
         for i in idxs[0]:
             item = self.passages[i]
-            context_str = f"Source URL: {item.get('url', 'N/A')}\nQuestion: {item.get('question', 'N/A')}\nAnswer: {item['text']}"
+            context_str = (
+                f"Source URL: {item.get('url', 'N/A')}\n"
+                f"Question: {item.get('question', 'N/A')}\n"
+                f"Answer: {item['text']}"
+            )
             retrieved_contexts.append(context_str)
-        
+
         context = "\n\n---\n\n".join(retrieved_contexts)
         return context

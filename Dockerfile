@@ -18,11 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port Flask will run on
+# Expose the port FastAPI will run on
 EXPOSE 5050
 
 # Ensure logs are sent straight to terminal without buffering
 ENV PYTHONUNBUFFERED 1
 
-# Default command to run the Flask API server
-CMD ["python", "chatbot/chatbot_app.py", "api"]
+# Default command to run the FastAPI server
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5050"]
