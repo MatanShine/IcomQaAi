@@ -57,10 +57,9 @@ class RAGChatbot:
 
     # ----------------------- Public API -----------------------
 
-    def chat(self, message: str, history: List[str] | None = None) -> str:
+    def chat(self, message: str, history: List[str]) -> List[str]:
         """Process a chat message for a given user and return the model's answer."""
 
-        history = history or []
         self.logger.debug(f"User message: {message}")
 
         # Retrieve relevant documents
@@ -75,10 +74,45 @@ class RAGChatbot:
                 max_tokens=400,
                 temperature=0.2,
             )
-            return response.choices[0].message.content.strip()
+            usage = response.usage
+            prompt_tokens = usage.prompt_tokens if usage else 0
+            completion_tokens = usage.completion_tokens if usage else 0
+            return (
+                response.choices[0].message.content.strip(),
+                retrieved,
+                prompt_tokens,
+                completion_tokens,
+            )
         except Exception as e:  # pragma: no cover - network errors
-            return f"An error occurred while contacting the language model: {e}"
+            return (f"An error occurred while contacting the language model: {e}", retrieved, 0, 0)
+    
+    def stream_chat(self, message: str, history: list[str]):
+        self.logger.debug(f"User message: {message}")
+        retrieved = self.retrieve_contexts(message)
+        prompt = self.build_prompt(history, message, retrieved)
 
+        full_answer = []
+        for chunk in self.llm.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            stream=True,
+            stream_options={"include_usage": True},
+            max_tokens=400,
+            temperature=0.2,
+        ):
+            if not chunk.choices:
+                continue
+            token = chunk.choices[0].delta.content or ""
+            full_answer.append(token)
+            yield token, retrieved, 0, 0         # token streaming
+
+        # usage arrives only in the final chunk
+        if hasattr(chunk, "usage"):
+            prompt_tokens = chunk.usage.prompt_tokens
+            completion_tokens = chunk.usage.completion_tokens
+
+        yield "", retrieved, prompt_tokens, completion_tokens
+    
     def build_prompt(self, history: List[str], new_message: str, context_text: str) -> str:
         """Construct a prompt for the LLM."""
 
