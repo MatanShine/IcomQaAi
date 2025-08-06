@@ -63,7 +63,7 @@ class PostmanScraper(BaseScraper):
             question = header.get_text().strip()
             answer_parts = []
             for sib in header.next_siblings:
-                if getattr(sib, "name", None) in {"h2", "h3"}:
+                if sib.name in ("h2", "h3"):
                     break
                 answer_parts.append(sib.get_text("\n"))
             answer = "\n".join(answer_parts).strip()

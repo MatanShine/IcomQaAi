@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.db import QAItem
+from app.models.db import CustomerSupportChatbotData
 
 
 class RAGTrainer:
@@ -17,7 +17,7 @@ class RAGTrainer:
         self.logger = logger
 
     def run(self) -> None:
-        items = self.db.query(QAItem).all()
+        items = self.db.query(CustomerSupportChatbotData).all()
         passage_data = [
             {"text": it.answer, "question": it.question, "url": it.url}
             for it in items
