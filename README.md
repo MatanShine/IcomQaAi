@@ -29,6 +29,7 @@ IcomQaAi/
 
    ```bash
    pip install -r requirements.txt
+   playwright install
    ```
 
 2. Set the required environment variables:
