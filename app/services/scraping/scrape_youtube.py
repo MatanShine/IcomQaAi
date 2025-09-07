@@ -5,10 +5,10 @@ from .base_scraper import BaseScraper
 from dotenv import load_dotenv
 
 class YoutubeScraper(BaseScraper):
-    __channel_id = 'UCFpIiS_uu-XD-vtg0U-asyg' # Zebra CRM youtube channel
+    __channel_id = 'UCFpIiS_uu-XD-vtg0U-asyg'  # Zebra CRM youtube channel
 
-    def __init__(self, base_url: str, data_path: str, logger):
-        super().__init__(base_url, data_path, logger)
+    def __init__(self, base_url: str, logger):
+        super().__init__(base_url, logger)
         load_dotenv()
         self.youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
 

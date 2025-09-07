@@ -1,48 +1,66 @@
-from .base_scraper import BaseScraper
-from bs4 import BeautifulSoup
-from typing import Set
-from playwright.sync_api import sync_playwright
-import time
+from __future__ import annotations
+
 import re
+from typing import List, Set
+
+from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
+
+from .base_scraper import BaseScraper
+
 
 class PostmanScraper(BaseScraper):
-    def __init__(self, base_url: str, data_path: str, logger):
-        super().__init__(base_url, data_path, logger)
-        self.sections = []
-    
+    """Scrape the Postman API documentation.
+
+    The Postman documentation is a single page containing many sections.  Each
+    section is treated as a separate Q&A pair.
+    """
+
+    def __init__(self, base_url: str, logger):
+        super().__init__(base_url, logger)
+        self.sections: List[tuple[str, str]] = []
+
     def get_urls(self) -> Set[str]:
-        urls = set()
-        urls.add("https://documenter.getpostman.com/view/14343450/Tzm5Jxfs#82fa2bfd-a865-48f1-9a8f-e36d81e298f1")
-        return urls
-    
-    def get_question(self, index: int) -> str:
-        return "איך משתמשים ב API של זברה: " + self.sections[index][0]
-    
-    def __get_text_from_url(self, url: str) -> None:
-        with sync_playwright() as p:
+        return {self.base_url}
+
+    # The base class iterates per URL, but the Postman page contains multiple
+    # questions.  We therefore override :meth:`scrape` to return all sections
+    # for the single documentation URL.
+    def scrape(self) -> List[dict]:  # type: ignore[override]
+        self._load_sections(self.base_url)
+        data = [
+            {
+                "url": self.base_url,
+                "question": f"איך משתמשים ב API של זברה: {q}",
+                "answer": a,
+            }
+            for q, a in self.sections
+        ]
+        self.sections = []
+        return data
+
+    # -- helpers -----------------------------------------------------------------
+    def _load_sections(self, url: str) -> None:
+        with sync_playwright() as p:  # pragma: no cover - requires browser
             browser = p.chromium.launch(headless=True)
             ctx = browser.new_context()
             page = ctx.new_page()
             page.goto(url, wait_until="networkidle")
-
-            # Scroll to bottom slowly to trigger lazy loading
             last_height = 0
             while True:
                 page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                time.sleep(1)
+                page.wait_for_timeout(1000)
                 new_height = page.evaluate("document.body.scrollHeight")
                 if new_height == last_height:
                     break
                 last_height = new_height
-                self.logger.info(f"Scrolling to bottom, last height: {last_height}")
             html = page.content()
             browser.close()
 
         soup = BeautifulSoup(html, "html.parser")
-        main = self.__clean_html(soup)
+        main = self._clean_html(soup)
         for header in main.select("h2, h3"):
             question = header.get_text().strip()
-            # collect siblings until next header
             answer_parts = []
             for sib in header.next_siblings:
                 if sib.name in ("h2", "h3"):
@@ -51,8 +69,8 @@ class PostmanScraper(BaseScraper):
             answer = "\n".join(answer_parts).strip()
             if answer:
                 self.sections.append((question, answer))
-        
-    def __clean_html(self, soup) -> BeautifulSoup:
+
+    def _clean_html(self, soup: BeautifulSoup) -> BeautifulSoup:
         for tag in soup(["script", "style", "img", "svg"]):
             tag.decompose()
         main = soup.select_one("#doc-wrapper")
@@ -63,10 +81,13 @@ class PostmanScraper(BaseScraper):
             el.decompose()
         for pre in main.select("pre"):
             txt = pre.get_text("\n")
-            txt = re.sub(r"<\s+/?", "<", txt) # join tokens like `<\nTAG` -> `<TAG`
+            txt = re.sub(r"<\s+/?", "<", txt)
             pre.replace_with("\n```\n" + txt.strip() + "\n```\n")
         return main
-
+    
+    def get_question(self, index: int) -> str:
+        return "איך משתמשים ב API של זברה: " + self.sections[index][0]
+    
     def get_answer(self, index: int) -> str:
         return self.sections[index][1]
     
