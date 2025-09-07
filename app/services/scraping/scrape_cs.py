@@ -7,8 +7,8 @@ import re
 
 class ZebraSupportScraper(BaseScraper):
 
-    def __init__(self, base_url: str, data_path: str, logger):
-        super().__init__(base_url, data_path, logger)
+    def __init__(self, base_url: str, logger):
+        super().__init__(base_url, logger)
 
     def get_urls(self):
         """Grab every /category/.../ link from the homepage navigation."""
