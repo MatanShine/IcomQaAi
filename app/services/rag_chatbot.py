@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from typing import List
@@ -7,8 +6,10 @@ import faiss
 from dotenv import load_dotenv
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.db import CustomerSupportChatbotData
 
 SYSTEM_INSTRUCTION = """
 You are a helpful customer support assistant for ZebraCRM (זברה). Use ONLY the provided context passages
@@ -24,20 +25,19 @@ class RAGChatbot:
 
     def __init__(
         self,
-        index_path: str,
-        passages_path: str,
-        logger: logging.Logger = logging.getLogger("CSChatbot"),
+        logger: logging.Logger,
+        db: Session,
+        index_path: str = settings.index_file,
         model: str = settings.embeddings_model,
-        max_history_messages: int = 6,
-        top_k: int = 10,
+        max_history_messages: int = 20,
+        top_k: int = 5,
     ) -> None:
         self.logger = logger
         self.logger.info("Loading embedding model...")
         self.model = SentenceTransformer(model)
         self.logger.info("Loading FAISS index...")
         self.index = faiss.read_index(index_path)
-        with open(passages_path, "r", encoding="utf-8") as f:
-            self.passages = json.load(f)
+        self._load_passages_from_db(db)
         self.passage_texts = [p["text"] for p in self.passages]
         self.logger.info("Index and passages loaded.")
 
@@ -86,12 +86,16 @@ class RAGChatbot:
         except Exception as e:  # pragma: no cover - network errors
             return (f"An error occurred while contacting the language model: {e}", retrieved, 0, 0)
     
-    def stream_chat(self, message: str, history: list[str]):
+    async def stream_chat(self, message: str, history: list[str]):
         self.logger.debug(f"User message: {message}")
         retrieved = self.retrieve_contexts(message)
         prompt = self.build_prompt(history, message, retrieved)
 
         full_answer = []
+        # Initialize usage counters and last_chunk to avoid UnboundLocalError
+        prompt_tokens = 0
+        completion_tokens = 0
+        last_chunk = None
         for chunk in self.llm.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
@@ -100,16 +104,17 @@ class RAGChatbot:
             max_tokens=400,
             temperature=0.2,
         ):
+            last_chunk = chunk
             if not chunk.choices:
                 continue
             token = chunk.choices[0].delta.content or ""
             full_answer.append(token)
-            yield token, retrieved, 0, 0         # token streaming
+            yield token, retrieved, 0, 0  # token streaming
 
         # usage arrives only in the final chunk
-        if hasattr(chunk, "usage"):
-            prompt_tokens = chunk.usage.prompt_tokens
-            completion_tokens = chunk.usage.completion_tokens
+        if last_chunk is not None and hasattr(last_chunk, "usage"):
+            prompt_tokens = last_chunk.usage.prompt_tokens
+            completion_tokens = last_chunk.usage.completion_tokens
 
         yield "", retrieved, prompt_tokens, completion_tokens
     
@@ -140,6 +145,9 @@ class RAGChatbot:
 
         retrieved_contexts = []
         for i in idxs[0]:
+            # Guard against mismatches between FAISS index size and passages length
+            if i < 0 or i >= len(self.passages):
+                continue
             item = self.passages[i]
             context_str = (
                 f"Source URL: {item.get('url', 'N/A')}\n"
@@ -150,3 +158,16 @@ class RAGChatbot:
 
         context = "\n\n---\n\n".join(retrieved_contexts)
         return context
+    
+    def _load_passages_from_db(self, db: Session) -> None:
+        """Load passages from the database and prepare for retrieval."""
+        self.logger.info("Loading passages from database...")
+        db_items = db.query(CustomerSupportChatbotData).all()
+        self.passages = [
+            {"text": item.answer or "", "question": item.question or "", "url": item.url or ""}
+            for item in db_items
+            if item.answer  # Only include items with answers
+        ]
+        self.passage_texts = [p["text"] for p in self.passages]
+        self.logger.info(f"Loaded {len(self.passages)} passages from database.")
+    

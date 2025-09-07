@@ -29,7 +29,15 @@ def _scrape_all(logger: logging.Logger) -> List[dict]:
     for scraper in scrapers:
         logger.info(f"Using {scraper.__class__.__name__} to scrape data")
         len_data = len(data)
-        data.extend(scraper.scrape())
+        source_type = {
+            'ZebraSupportScraper': 'cs',
+            'PostmanScraper': 'pm',
+            'YoutubeScraper': 'yt',
+        }.get(scraper.__class__.__name__, 'unknown')
+        scraped = scraper.scrape()
+        for item in scraped:
+            item.setdefault('type', source_type)
+        data.extend(scraped)
         logger.info(f"Scraped {len(data) - len_data} items from {scraper.__class__.__name__}")
     logger.info(f"Scraped {len(data)} items in total")
     return data

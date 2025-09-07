@@ -21,6 +21,7 @@ class CustomerSupportChatbotData(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     url = Column(String, nullable=False)
+    type = Column(String, nullable=False, default="unknown")
     question = Column(Text, nullable=True)
     answer = Column(Text, nullable=True)
     date_added = Column(DateTime, default=datetime.now(), nullable=False)
