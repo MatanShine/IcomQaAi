@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi import BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import json
@@ -45,10 +46,23 @@ def get_bot() -> RAGChatbot:
     return rag_bot.bot
 
 @router.get("/add_new_data", response_model=OperationResponse)
-def add_new_data(db: Session = Depends(get_db)):
-    added = svc.add_data(db, logger)
-    rag_bot.reinitialize(db)
-    return OperationResponse(amount_added=added)
+async def add_new_data(background: BackgroundTasks):
+    # Run the heavy scraping/training in the background with its own DB session
+    def _job():
+        logger.info("Background add_new_data job started")
+        db = SessionLocal()
+        try:
+            svc.add_data(db, logger)
+            rag_bot.reinitialize(db)
+            logger.info("Background add_new_data job completed successfully")
+        except Exception as e:  # pragma: no cover
+            logger.exception(f"Background add_new_data job failed: {e}")
+        finally:
+            db.close()
+
+    background.add_task(_job)
+    # Immediate acknowledgment; background task will handle the real work
+    return OperationResponse(amount_added=0)
 
 
 @router.post("/chat", response_model=ChatResponse)

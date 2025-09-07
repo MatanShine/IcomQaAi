@@ -17,12 +17,8 @@ class RAGTrainer:
         self.logger = logger
 
     def run(self) -> None:
-        items = self.db.query(CustomerSupportChatbotData).all()
-        passage_data = [
-            {"text": it.answer, "question": it.question, "url": it.url}
-            for it in items
-            if it.answer
-        ]
+        # passage_data = all data from CustomerSupportChatbotData that has an answer
+        passage_data = self.db.query(CustomerSupportChatbotData).filter(CustomerSupportChatbotData.answer.isnot(None)).all()
         if not passage_data:
             self.logger.warning("No data available for training")
             return
@@ -32,9 +28,9 @@ class RAGTrainer:
         self.logger.info("Encoding passages...")
 
         def build_passage(item):
-            t = item.get("title", "")
-            q = item.get("question", "")
-            a = item.get("answer", item.get("text", ""))
+            t = item.url
+            q = item.question
+            a = item.answer
             return f"passage: {t}\nשאלה: {q}\nתשובה: {a}"
 
         passages_text = [build_passage(it) for it in passage_data]
@@ -54,9 +50,4 @@ class RAGTrainer:
         self.logger.info(f"Index built with {index.ntotal} vectors.")
         self.logger.info(f"Saving index to {settings.index_file}...")
         faiss.write_index(index, settings.index_file)
-
-        self.logger.info(f"Saving passages to {settings.passages_file}...")
-        with open(settings.passages_file, "w", encoding="utf-8") as f:
-            json.dump(passage_data, f, ensure_ascii=False, indent=4)
-
         self.logger.info("Done training.")

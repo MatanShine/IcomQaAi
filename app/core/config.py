@@ -12,7 +12,6 @@ class Settings(BaseSettings):
         env="DATABASE_URL",
     )
     index_file: str = Field(default="data/qa_database.index")
-    passages_file: str = Field(default="data/qa_database_passages.json")
     embeddings_model: str = Field(default="intfloat/multilingual-e5-base")
     default_port: int = Field(default=5050)
 
