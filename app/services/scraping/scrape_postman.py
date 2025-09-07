@@ -84,3 +84,39 @@ class PostmanScraper(BaseScraper):
             txt = re.sub(r"<\s+/?", "<", txt)
             pre.replace_with("\n```\n" + txt.strip() + "\n```\n")
         return main
+    
+    def get_question(self, index: int) -> str:
+        return "איך משתמשים ב API של זברה: " + self.sections[index][0]
+    
+    def get_answer(self, index: int) -> str:
+        return self.sections[index][1]
+    
+    def add_new_data(self, data: list) -> int:
+        """
+        Run the scraper, collecting data from all URLs and saving to the specified path.
+        
+        Args:
+            data_path (str): Path to the JSON file where data will be saved.
+                            Will be created if it doesn't exist.
+        """
+        l = len(data)
+        urls = self.find_urls_to_process(data)
+        for i, url in enumerate(urls, 1):
+            try:
+                self.__get_text_from_url(url)
+                self.logger.info(f"[{i}/{len(self.sections)}] Processing: {url}")
+                for j in range(len(self.sections)):
+                    question = self.get_question(j)
+                    answer = self.get_answer(j)
+                    data.append({
+                        'url': url,
+                        'question': question,
+                        'answer': answer
+                    })
+                self.sections = []
+                self.logger.info(f"  ✓ Successfully processed")
+            except Exception as e:
+                self.logger.info(f"  ✗ Error processing {url}: {str(e)}")
+        
+        self.logger.info(f"\nProcessing complete. Added {len(data) - l} new items. Total items: {len(data)}")
+        return data
