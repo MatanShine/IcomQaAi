@@ -2,37 +2,58 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import json
-
-from app.models.db import SessionLocal, CustomerSupportChatbotAI
+from app.models.db import init_db, SessionLocal
+from app.models.db import CustomerSupportChatbotAI
 from app.schemas.api import ChatRequest, ChatResponse, OperationResponse
 from app.services import svc
+from app.services.rag_chatbot import RAGChatbot
+import logging
 
-router = APIRouter()
-
-
-def get_db():
+init_db()
+def get_db() -> Session:
+    """Get a database session generator for FastAPI dependency injection."""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+logger = logging.getLogger("services")
+router = APIRouter()
 
+class SingletonBot:
+    def __init__(self, db: Session | None) -> None:
+        # Build the bot once at startup using a throwaway session
+        if db is not None:
+            self.bot = RAGChatbot(logger, db)
+            db.close()
+        else:
+            self.bot = None  # will be set on first use
+    def reinitialize(self, db: Session) -> None:
+        self.bot = RAGChatbot(logger, db)
 
-@router.get("/create_database", response_model=OperationResponse)
-def create_database(db: Session = Depends(get_db)):
-    added = svc.add_data(db)
-    return OperationResponse(amount_added=added)
+rag_bot = SingletonBot(SessionLocal())
 
+def get_bot() -> RAGChatbot:
+    """FastAPI dependency to provide the singleton RAG bot."""
+    # If for any reason it's not initialized, initialize now with a fresh session
+    if getattr(rag_bot, "bot", None) is None:
+        db = SessionLocal()
+        try:
+            rag_bot.bot = RAGChatbot(logger, db)
+        finally:
+            db.close()
+    return rag_bot.bot
 
-@router.get("/rewrite_database", response_model=OperationResponse)
-def rewrite_database(db: Session = Depends(get_db)):
-    added = svc.rebuild_database(db)
+@router.get("/add_new_data", response_model=OperationResponse)
+def add_new_data(db: Session = Depends(get_db)):
+    added = svc.add_data(db, logger)
+    rag_bot.reinitialize(db)
     return OperationResponse(amount_added=added)
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, db: Session = Depends(get_db)):
-    answer, retrieved, tokens_sent, tokens_received = svc.chat(req.message, req.history)
+def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
+    answer, retrieved, tokens_sent, tokens_received = svc.chat(bot, req.message, req.history)
     entry = CustomerSupportChatbotAI(question=req.message,
                                      answer=answer,
                                      context=retrieved,
@@ -43,19 +64,26 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     db.commit()
     return ChatResponse(response=answer)
 
-@router.post("/chat/stream")
-async def chat_stream(req: ChatRequest, db: Session = Depends(get_db)):
+@router.post("/chat/stream", response_model=ChatResponse)
+async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
     async def token_generator():
         full_answer = []
         tokens_sent = 0
         tokens_received = 0
-        for delta in svc.stream_chat(req.message, req.history):
+        retrieved = ""
+        
+        # Consume the generator and stream tokens
+        async for delta in svc.stream_chat(bot, req.message, req.history):
             token, retrieved, t_sent, t_received = delta
-            full_answer.append(token)
-            yield token
+            if token:  # Only process non-empty tokens
+                full_answer.append(token)
+                # Yield each token as a JSON object
+                yield f"data: {{\"response\": {json.dumps(token)} }}\n\n"
+            tokens_sent = t_sent
+            tokens_received = t_received
+
+        # After streaming is complete, save to database
         answer = "".join(full_answer)
-        tokens_sent += t_sent
-        tokens_received += t_received
         db.add(CustomerSupportChatbotAI(
             question=req.message,
             answer=answer,
@@ -65,5 +93,15 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db)):
             tokens_received=tokens_received
         ))
         db.commit()
+        # Send a final empty message to signal completion
+        yield "data: {}\n\n"
 
-    return StreamingResponse(token_generator(), media_type="text/plain")
+    return StreamingResponse(
+        token_generator(),
+        media_type="text/event-stream",
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'  # Disable buffering for nginx
+        }
+    )

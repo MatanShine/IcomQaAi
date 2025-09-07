@@ -1,37 +1,25 @@
 from __future__ import annotations
-
 from typing import List
-
 from sqlalchemy.orm import Session
-
-from app.core.config import settings
-from app.models.db import CustomerSupportChatbotData, init_db
+from app.models.db import CustomerSupportChatbotData
 from app.services.rag_chatbot import RAGChatbot
 from app.services.scraping.scrape_cs import ZebraSupportScraper
 from app.services.scraping.scrape_postman import PostmanScraper
 from app.services.scraping.scrape_youtube import YoutubeScraper
 from app.services.training.rag import RAGTrainer
-
 import logging
 
-logger = logging.getLogger("services")
 
-# Ensure tables exist
-init_db()
+def chat(bot: RAGChatbot, message: str, history: List[str] = []) -> List[str]:
+    """Process a chat message."""
+    return bot.chat(message, history)
 
-# Initialise chatbot
-rag_bot = RAGChatbot(settings.index_file, settings.passages_file, logger)
+def stream_chat(bot: RAGChatbot, message: str, history: List[str] = []) -> List[str]:
+    """Stream chat response."""
+    return bot.stream_chat(message, history)
 
-
-def chat(message: str, history: List[str] = []) -> List[str]:
-    return rag_bot.chat(message, history)
-
-
-def stream_chat(message: str, history: List[str] = []) -> List[str]:
-    return rag_bot.stream_chat(message, history)
-
-
-def _scrape_all() -> List[dict]:
+def _scrape_all(logger: logging.Logger) -> List[dict]:
+    """Scrape data from all available sources."""
     scrapers = [
         ZebraSupportScraper("https://support.zebracrm.com", logger),
         PostmanScraper("https://documenter.getpostman.com/view/14343450/Tzm5Jxfs#82fa2bfd-a865-48f1-9a8f-e36d81e298f1", logger),
@@ -39,21 +27,24 @@ def _scrape_all() -> List[dict]:
     ]
     data: List[dict] = []
     for scraper in scrapers:
+        logger.info(f"Using {scraper.__class__.__name__} to scrape data")
+        len_data = len(data)
         data.extend(scraper.scrape())
+        logger.info(f"Scraped {len(data) - len_data} items from {scraper.__class__.__name__}")
+    logger.info(f"Scraped {len(data)} items in total")
     return data
 
-
-def add_data(session: Session) -> int:
-    """Add new data from scrapers into the database."""
-
-    data = _scrape_all()
-    added = 0
+def add_data(db: Session, logger: logging.Logger) -> int:
+    """Add new data from scrapers into the database and reinitialize the chatbot."""
+    data = _scrape_all(logger)
+    amount_added = 0
     for item in data:
-        exists = session.query(CustomerSupportChatbotData).filter(CustomerSupportChatbotData.url == item["url"]).first()
+        exists = db.query(CustomerSupportChatbotData).filter(CustomerSupportChatbotData.url == item["url"]).first()
         if not exists:
-            session.add(CustomerSupportChatbotData(**item))
-            added += 1
-    if added:
-        session.commit()
-        # RAGTrainer(session, logger).run()
-    return added
+            db.add(CustomerSupportChatbotData(**item))
+            amount_added += 1
+    if amount_added:
+        db.commit()
+        RAGTrainer(db, logger).run()
+    logger.info(f"Added {amount_added} new items to the database")
+    return amount_added

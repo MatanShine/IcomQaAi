@@ -23,8 +23,7 @@ class CustomerSupportChatbotData(Base):
     url = Column(String, nullable=False)
     question = Column(Text, nullable=True)
     answer = Column(Text, nullable=True)
-    type = Column(String(10), nullable=False)  # cs, yt, pm
-    date_added = Column(DateTime, default=datetime.utcnow, nullable=False)
+    date_added = Column(DateTime, default=datetime.now(), nullable=False)
 
 
 class CustomerSupportChatbotAI(Base):
@@ -39,7 +38,7 @@ class CustomerSupportChatbotAI(Base):
     history = Column(Text, nullable=True)
     tokens_sent = Column(Integer, nullable=True)
     tokens_received = Column(Integer, nullable=True)
-    date_asked = Column(DateTime, default=datetime.utcnow, nullable=False)
+    date_asked = Column(DateTime, default=datetime.now(), nullable=False)
 
 
 def init_db() -> None:
