@@ -18,14 +18,17 @@ class BaseScraper(ABC):
     @abstractmethod
     def get_urls(self) -> Set[str]:
         """Return the set of URLs the scraper should visit."""
+        pass
 
     @abstractmethod
     def get_question(self, url: str) -> Optional[str]:
         """Extract a question from ``url``."""
+        pass
 
     @abstractmethod
     def get_answer(self, url: str) -> Optional[str]:
         """Extract an answer from ``url``."""
+        pass
 
     def scrape(self) -> List[Dict[str, str]]:
         """Collect data from all URLs and return it as a list of dictionaries."""
