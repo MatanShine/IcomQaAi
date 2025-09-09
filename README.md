@@ -19,6 +19,7 @@ IcomQaAi/
 ├── tests/                      # pytest based tests
 │   └── test_endpoints.py
 ├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 └── README.md
 ```
@@ -35,16 +36,29 @@ IcomQaAi/
 2. Set the required environment variables:
 
    ```bash
-   export DATABASE_URL=postgresql://user:password@localhost:5432/icom
+   export DATABASE_URL=postgresql://user:password@localhost:5433/icomqaai
    export OPENAI_API_KEY=your-key
    export YOUTUBE_API_KEY=your-key
    ```
 
 3. Run the server:
 
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+
+## Docker
+
+Start the API and a PostgreSQL database with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The API will be available at <http://localhost:8000>.
+
+The PostgreSQL database is exposed on port `5433` with the default database
+name `icomqaai`.
 
 ## Tests
 
