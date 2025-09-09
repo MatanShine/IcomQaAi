@@ -60,6 +60,7 @@ The API will be available at <http://localhost:8000>.
 The PostgreSQL database is exposed on port `5433` with the default database
 name `icomqaai`.
 
+
 ## Tests
 
 Execute the test-suite with:
