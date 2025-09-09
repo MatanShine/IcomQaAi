@@ -19,6 +19,7 @@ IcomQaAi/
 ├── tests/                      # pytest based tests
 │   └── test_endpoints.py
 ├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 └── README.md
 ```
@@ -42,9 +43,19 @@ IcomQaAi/
 
 3. Run the server:
 
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+
+## Docker
+
+Start the API and a PostgreSQL database with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The API will be available at <http://localhost:8000>.
 
 ## Tests
 
