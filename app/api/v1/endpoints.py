@@ -73,7 +73,8 @@ def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depe
                                      context=retrieved,
                                      history=req.history,
                                      tokens_sent=tokens_sent,
-                                     tokens_received=tokens_received)
+                                     tokens_received=tokens_received,
+                                     session_id=req.session_id)
     db.add(entry)
     db.commit()
     return ChatResponse(response=answer)
@@ -104,7 +105,8 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGC
             context=retrieved,
             history=req.history,
             tokens_sent=tokens_sent,
-            tokens_received=tokens_received
+            tokens_received=tokens_received,
+            session_id=req.session_id
         ))
         db.commit()
         # Send a final empty message to signal completion
