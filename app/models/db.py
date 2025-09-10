@@ -39,6 +39,7 @@ class CustomerSupportChatbotAI(Base):
     history = Column(Text, nullable=True)
     tokens_sent = Column(Integer, nullable=True)
     tokens_received = Column(Integer, nullable=True)
+    session_id = Column(String, nullable=False)
     date_asked = Column(DateTime, default=datetime.now(), nullable=False)
 
 

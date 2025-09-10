@@ -22,19 +22,13 @@ def patch_services(monkeypatch):
     monkeypatch.setattr("app.services.svc.chat", fake_chat)
 
 
-def test_create_database():
-    res = client.get("/api/v1/create_database")
-    assert res.status_code == 200
-    assert res.json() == {"amount_added": 0}
-
-
-def test_rewrite_database():
-    res = client.get("/api/v1/rewrite_database")
+def test_add_new_data():
+    res = client.get("/api/v1/add_new_data")
     assert res.status_code == 200
     assert res.json() == {"amount_added": 0}
 
 
 def test_chat():
-    res = client.post("/api/v1/chat", json={"message": "hi", "history": []})
+    res = client.post("/api/v1/chat", json={"message": "hi", "history": [], "session_id": "abc"})
     assert res.status_code == 200
     assert res.json() == {"response": "stubbed response"}
