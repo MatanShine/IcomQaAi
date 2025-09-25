@@ -19,9 +19,9 @@ class RAGTrainer:
     def run(self) -> None:
         # passage_data = all data from CustomerSupportChatbotData that has an answer
         passage_data = self.db.query(CustomerSupportChatbotData).filter(CustomerSupportChatbotData.answer.isnot(None)).all()
-        if not passage_data:
-            self.logger.info("No data available for training")
-            return
+        # if not passage_data:
+        #     self.logger.info("No data available for training")
+        #     return
 
         self.logger.info("Loading model...")
         model = SentenceTransformer(settings.embeddings_model)
