@@ -8,6 +8,7 @@ from app.models.db import CustomerSupportChatbotAI
 from app.schemas.api import ChatRequest, ChatResponse, OperationResponse
 from app.services import svc
 from app.services.rag_chatbot import RAGChatbot
+from app.services.training.rag import RAGTrainer
 import logging
 
 init_db()
@@ -25,6 +26,7 @@ class SingletonBot:
     def __init__(self, db: Session | None) -> None:
         # Build the bot once at startup using a throwaway session
         if db is not None:
+            RAGTrainer(db, logger).run()
             self.bot = RAGChatbot(logger, db)
             db.close()
         else:
