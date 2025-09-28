@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         env="DATABASE_URL",
     )
     index_file: str = Field(default="data/qa_database.index")
-    embeddings_model: str = Field(default="intfloat/multilingual-e5-base")
+    embeddings_model: str = Field(default="intfloat/multilingual-e5-small")
     default_port: int = Field(default=5050)
 
     class Config:
