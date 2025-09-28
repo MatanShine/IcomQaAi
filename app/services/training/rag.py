@@ -4,7 +4,7 @@ import logging
 import faiss
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
-
+from pathlib import Path
 from app.core.config import settings
 from app.models.db import CustomerSupportChatbotData
 
@@ -19,9 +19,16 @@ class RAGTrainer:
     def run(self) -> None:
         # passage_data = all data from CustomerSupportChatbotData that has an answer
         passage_data = self.db.query(CustomerSupportChatbotData).filter(CustomerSupportChatbotData.answer.isnot(None)).all()
-        # if not passage_data:
-        #     self.logger.info("No data available for training")
-        #     return
+
+        if not passage_data:
+            self.logger.warning("No data available; writing EMPTY FAISS index.")
+            model = SentenceTransformer(settings.embeddings_model)
+            dim = model.get_sentence_embedding_dimension()
+            index = faiss.IndexFlatIP(dim)
+            Path(settings.index_file).parent.mkdir(parents=True, exist_ok=True)
+            faiss.write_index(index, settings.index_file)
+            self.logger.info(f"Wrote empty index (dim={dim}) to {settings.index_file}.")
+            return
 
         self.logger.info("Loading model...")
         model = SentenceTransformer(settings.embeddings_model)
