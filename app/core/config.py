@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     index_file: str = Field(default="data/qa_database.index")
     embeddings_model: str = Field(default="intfloat/multilingual-e5-small")
     default_port: int = Field(default=5050)
+    scraper_timeout: int = Field(default=60000, env="SCRAPER_TIMEOUT")
+    scraper_max_retries: int = Field(default=3, env="SCRAPER_MAX_RETRIES")
 
     class Config:
         env_file = ".env"
