@@ -34,11 +34,18 @@ def _scrape_all(logger: logging.Logger) -> List[dict]:
             'PostmanScraper': 'pm',
             'YoutubeScraper': 'yt',
         }.get(scraper.__class__.__name__, 'unknown')
-        scraped = scraper.scrape()
-        for item in scraped:
-            item.setdefault('type', source_type)
-        data.extend(scraped)
-        logger.info(f"Scraped {len(data) - len_data} items from {scraper.__class__.__name__}")
+        
+        try:
+            scraped = scraper.scrape()
+            for item in scraped:
+                item.setdefault('type', source_type)
+            data.extend(scraped)
+            logger.info(f"Scraped {len(data) - len_data} items from {scraper.__class__.__name__}")
+        except Exception as e:
+            logger.error(f"Failed to scrape from {scraper.__class__.__name__}: {str(e)}")
+            logger.info(f"Continuing with other scrapers...")
+            continue
+    
     logger.info(f"Scraped {len(data)} items in total")
     return data
 

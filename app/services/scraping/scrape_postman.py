@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 from .base_scraper import BaseScraper
+from app.core.config import settings
 
 
 class PostmanScraper(BaseScraper):
@@ -41,21 +42,47 @@ class PostmanScraper(BaseScraper):
 
     # -- helpers -----------------------------------------------------------------
     def _load_sections(self, url: str) -> None:
-        with sync_playwright() as p:  # pragma: no cover - requires browser
-            browser = p.chromium.launch(headless=True)
-            ctx = browser.new_context()
-            page = ctx.new_page()
-            page.goto(url, wait_until="networkidle")
-            last_height = 0
-            while True:
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                page.wait_for_timeout(1000)
-                new_height = page.evaluate("document.body.scrollHeight")
-                if new_height == last_height:
-                    break
-                last_height = new_height
-            html = page.content()
-            browser.close()
+        max_retries = settings.scraper_max_retries
+        retry_delay = 2  # seconds
+        timeout = settings.scraper_timeout
+        
+        for attempt in range(max_retries):
+            try:
+                with sync_playwright() as p:  # pragma: no cover - requires browser
+                    browser = p.chromium.launch(headless=True)
+                    ctx = browser.new_context()
+                    page = ctx.new_page()
+                    page.set_default_timeout(timeout)
+                    page.set_default_navigation_timeout(timeout)        
+                    try:
+                        page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+                        page.wait_for_selector("#doc-wrapper", timeout=timeout//2)
+                    except Exception as nav_error:
+                        self.logger.warning(f"Navigation failed with domcontentloaded, trying load: {nav_error}")
+                        page.goto(url, wait_until="load", timeout=timeout)
+                        page.wait_for_selector("#doc-wrapper", timeout=timeout//2)
+                            
+                    page.wait_for_timeout(3000)                    
+                    last_height = 0
+                    while True:
+                        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                        page.wait_for_timeout(1000)
+                        new_height = page.evaluate("document.body.scrollHeight")
+                        if new_height == last_height:
+                            break
+                        last_height = new_height
+                    html = page.content()
+                    browser.close()
+            except Exception as e:
+                self.logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    self.logger.info(f"Retrying in {retry_delay} seconds...")
+                    import time
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    self.logger.error(f"All {max_retries} attempts failed. Last error: {str(e)}")
+                    raise e
 
         soup = BeautifulSoup(html, "html.parser")
         main = self._clean_html(soup)
