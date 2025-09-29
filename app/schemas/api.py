@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class ChatRequest(BaseModel):
     message: str = Field(
-        example="איך מוסיפים אוטומציה ליומן?",
+        example="איך מוסיפים מידע ליומן?",
         description="The new message from the user",
     )
     session_id: str = Field(
