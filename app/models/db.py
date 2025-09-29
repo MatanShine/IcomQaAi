@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, create_engine
+from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.core.config import settings
@@ -41,6 +42,17 @@ class CustomerSupportChatbotAI(Base):
     tokens_received = Column(Integer, nullable=True)
     session_id = Column(String, nullable=False)
     date_asked = Column(DateTime, default=datetime.now(), nullable=False)
+
+
+class SupportRequest(Base):
+    """Stores customer support requests opened by end-users."""
+
+    __tablename__ = "support_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, nullable=False, index=True)
+    date_added = Column(DateTime, server_default=func.now(), nullable=False)
+    message_amount = Column(Integer, nullable=False)
 
 
 def init_db() -> None:

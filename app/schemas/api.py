@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 from typing import List
 
@@ -27,4 +29,18 @@ class ChatResponse(BaseModel):
 
 class OperationResponse(BaseModel):
     amount_added: int
+
+
+class SupportRequestCreate(BaseModel):
+    session_id: str = Field(
+        example="abc123",
+        description="Identifier for the user session that will be escalated to support",
+    )
+
+
+class SupportRequestResponse(BaseModel):
+    id: int
+    session_id: str
+    message_amount: int
+    date_added: datetime
 
