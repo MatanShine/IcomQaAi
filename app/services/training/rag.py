@@ -56,5 +56,6 @@ class RAGTrainer:
 
         self.logger.info(f"Index built with {index.ntotal} vectors.")
         self.logger.info(f"Saving index to {settings.index_file}...")
+        Path(settings.index_file).parent.mkdir(parents=True, exist_ok=True)
         faiss.write_index(index, settings.index_file)
         self.logger.info("Done training.")
