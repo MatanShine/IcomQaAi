@@ -67,13 +67,31 @@ async def add_new_data(background: BackgroundTasks):
     return OperationResponse(amount_added=0)
 
 
+def _build_history(db: Session, session_id: str) -> list[str]:
+    row = (
+        db.query(CustomerSupportChatbotAI)
+        .filter(CustomerSupportChatbotAI.session_id == session_id)
+        .order_by(CustomerSupportChatbotAI.id.desc())
+        .first())
+    history = []
+    if row:
+        try:
+            history = json.loads(row.history)
+        except Exception as e:
+            logger.warning(f"Failed to parse history JSON: {e}")
+            history = []
+        history.extend([row.question, row.answer])
+    return history
+
+
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
-    answer, retrieved, tokens_sent, tokens_received = svc.chat(bot, req.message, req.history)
+    history = _build_history(db, req.session_id)
+    answer, retrieved, tokens_sent, tokens_received = svc.chat(bot, req.message, history)
     entry = CustomerSupportChatbotAI(question=req.message,
                                      answer=answer,
                                      context=retrieved,
-                                     history=req.history,
+                                     history=json.dumps(history),
                                      tokens_sent=tokens_sent,
                                      tokens_received=tokens_received,
                                      session_id=req.session_id)
@@ -83,14 +101,16 @@ def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depe
 
 @router.post("/chat/stream", response_model=ChatResponse)
 async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
+    history = _build_history(db, req.session_id)
+
     async def token_generator():
         full_answer = []
         tokens_sent = 0
         tokens_received = 0
         retrieved = ""
-        
+
         # Consume the generator and stream tokens
-        async for delta in svc.stream_chat(bot, req.message, req.history):
+        async for delta in svc.stream_chat(bot, req.message, history):
             token, retrieved, t_sent, t_received = delta
             if token:  # Only process non-empty tokens
                 full_answer.append(token)
@@ -105,7 +125,7 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGC
             question=req.message,
             answer=answer,
             context=retrieved,
-            history=req.history,
+            history=json.dumps(history),
             tokens_sent=tokens_sent,
             tokens_received=tokens_received,
             session_id=req.session_id
