@@ -48,7 +48,7 @@ class SupportRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, nullable=False, index=True)
-    date_added = Column(DateTime, server_default=datetime.now(), nullable=False)
+    date_added = Column(DateTime, default=datetime.now(), nullable=False)
 
 
 def init_db() -> None:
