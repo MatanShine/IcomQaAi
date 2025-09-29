@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 from typing import List
 
@@ -14,7 +12,7 @@ class ChatRequest(BaseModel):
         description="List of previous messages in the conversation, alternating between user and assistant",
     )
     message: str = Field(
-        example="איך מוסיפים אוטומציה ליומן?",
+        example="איך מוסיפים מידע ליומן?",
         description="The new message from the user",
     )
     session_id: str = Field(
@@ -41,6 +39,3 @@ class SupportRequestCreate(BaseModel):
 class SupportRequestResponse(BaseModel):
     id: int
     session_id: str
-    message_amount: int
-    date_added: datetime
-

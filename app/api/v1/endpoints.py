@@ -4,16 +4,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import json
 from app.models.db import init_db, SessionLocal
-from sqlalchemy import func
-
 from app.models.db import CustomerSupportChatbotAI, SupportRequest
-from app.schemas.api import (
-    ChatRequest,
-    ChatResponse,
-    OperationResponse,
-    SupportRequestCreate,
-    SupportRequestResponse,
-)
+from app.schemas.api import (ChatRequest, ChatResponse, OperationResponse, SupportRequestCreate, SupportRequestResponse)
 from app.services import svc
 from app.services.rag_chatbot import RAGChatbot
 from app.services.training.rag import RAGTrainer
@@ -89,29 +81,13 @@ def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depe
     db.commit()
     return ChatResponse(response=answer)
 
-
 @router.post("/open_support_request", response_model=SupportRequestResponse)
-def open_support_request(
-    req: SupportRequestCreate, db: Session = Depends(get_db)
-):
-    message_amount = (
-        db.query(func.count(CustomerSupportChatbotAI.id))
-        .filter(CustomerSupportChatbotAI.session_id == req.session_id)
-        .scalar()
-    )
-    support_request = SupportRequest(
-        session_id=req.session_id,
-        message_amount=message_amount or 0,
-    )
+def open_support_request(req: SupportRequestCreate, db: Session = Depends(get_db)):
+    support_request = SupportRequest(session_id=req.session_id)
     db.add(support_request)
     db.commit()
     db.refresh(support_request)
-    return SupportRequestResponse(
-        id=support_request.id,
-        session_id=support_request.session_id,
-        message_amount=support_request.message_amount,
-        date_added=support_request.date_added,
-    )
+    return SupportRequestResponse(id=support_request.id, session_id=support_request.session_id)
 
 @router.post("/chat/stream", response_model=ChatResponse)
 async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):

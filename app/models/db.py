@@ -1,9 +1,6 @@
 from __future__ import annotations
-
 from sqlalchemy import Column, Integer, String, Text, DateTime, create_engine
-from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base, sessionmaker
-
 from app.core.config import settings
 from datetime import datetime
 
@@ -51,8 +48,7 @@ class SupportRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, nullable=False, index=True)
-    date_added = Column(DateTime, server_default=func.now(), nullable=False)
-    message_amount = Column(Integer, nullable=False)
+    date_added = Column(DateTime, server_default=datetime.now(), nullable=False)
 
 
 def init_db() -> None:
