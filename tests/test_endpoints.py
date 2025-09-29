@@ -14,7 +14,7 @@ def patch_services(monkeypatch):
     def fake_rebuild(_):
         return 0
 
-    def fake_chat(message, history=None):
+    def fake_chat(bot, message, history=None):
         return "stubbed response"
 
     monkeypatch.setattr("app.services.svc.add_data", fake_add_data)
@@ -29,6 +29,6 @@ def test_add_new_data():
 
 
 def test_chat():
-    res = client.post("/api/v1/chat", json={"message": "hi", "history": [], "session_id": "abc"})
+    res = client.post("/api/v1/chat", json={"message": "hi", "session_id": "abc"})
     assert res.status_code == 200
     assert res.json() == {"response": "stubbed response"}
