@@ -16,4 +16,5 @@ sentence-transformers
 sqlalchemy
 uvicorn
 youtube-transcript-api
+rank-bm25
 
