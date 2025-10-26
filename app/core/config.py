@@ -12,7 +12,9 @@ class Settings(BaseSettings):
         env="DATABASE_URL",
     )
     index_file: str = Field(default="data/qa_database.index")
+    bm25_index_file: str = Field(default="data/qa_database_bm25.pkl")
     embeddings_model: str = Field(default="intfloat/multilingual-e5-small")
+    cross_encoder_model: str = Field(default="cross-encoder/ms-marco-MiniLM-L-6-v2")
     default_port: int = Field(default=5050)
     scraper_timeout: int = Field(default=60000, env="SCRAPER_TIMEOUT")
     scraper_max_retries: int = Field(default=3, env="SCRAPER_MAX_RETRIES")
