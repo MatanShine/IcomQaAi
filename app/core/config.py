@@ -11,7 +11,7 @@ class Settings(BaseSettings):
         default="postgresql://postgres:postgres@localhost:5432/postgres",
         env="DATABASE_URL",
     )
-    index_file: str = Field(default="data/qa_database.index")
+    index_file: str = Field(default="data/qa_database.json")
     embeddings_model: str = Field(default="intfloat/multilingual-e5-small")
     default_port: int = Field(default=5050)
     scraper_timeout: int = Field(default=60000, env="SCRAPER_TIMEOUT")
