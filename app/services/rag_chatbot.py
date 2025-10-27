@@ -201,20 +201,12 @@ class RAGChatbot:
         history_text += "]"
         prompt_data = {
             "instructions": SYSTEM_INSTRUCTION,
-            "history": history_text,
-            "retrieved_context": context_text,
+            "conversation_history": history_text,
+            "retrieved_context_from_manual": context_text,
             "user_question": new_message,
         }
         # Return as a nicely formatted JSON string (for clarity or logging)
         return json.dumps(prompt_data, ensure_ascii=False, indent=2)
-        # prompt = (
-        #     f"{SYSTEM_INSTRUCTION}\n\n"
-        #     f"### Conversation so far:\n{history_text}\n"
-        #     f"### Retrieved context from manual:\n{context_text}\n\n"
-        #     f"### User question:\n{new_message}\n"
-        #     f"### Your answer (short and to the point):\n"
-        # )
-        # return prompt
 
     def retrieve_contexts(self, query: str) -> str:
         """Tokenize query, search BM25, and return top_k passages."""
