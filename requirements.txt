@@ -1,5 +1,4 @@
 beautifulsoup4
-faiss-cpu
 fastapi
 google-api-python-client
 httpx
@@ -11,8 +10,8 @@ pydantic
 pydantic-settings
 pytest
 python-dotenv
+rank-bm25
 requests
-sentence-transformers
 sqlalchemy
 uvicorn
 youtube-transcript-api
