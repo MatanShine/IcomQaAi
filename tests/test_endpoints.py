@@ -18,6 +18,10 @@ from app.models.db import (
 
 client = TestClient(app)
 
+SESSION_ID = "icrmsw_8940_1761630008.5447"
+THEME = "icrmsw"
+USER_ID = "8940"
+
 
 @pytest.fixture(autouse=True)
 def patch_services(monkeypatch):
@@ -56,13 +60,18 @@ def test_add_new_data():
 
 
 def test_chat():
-    res = client.post("/api/v1/chat", json={"message": "hi", "session_id": "abc"})
+    res = client.post("/api/v1/chat", json={"message": "hi", "session_id": SESSION_ID})
     assert res.status_code == 200
     assert res.json() == {"response": "stubbed response"}
 
+    with SessionLocal() as session:
+        saved = session.query(CustomerSupportChatbotAI).filter_by(session_id=SESSION_ID).one()
+        assert saved.theme == THEME
+        assert saved.user_id == USER_ID
+
 
 def test_open_support_request_counts_messages():
-    session_id = "abc"
+    session_id = SESSION_ID
     with SessionLocal() as session:
         session.add_all(
             [
@@ -74,6 +83,8 @@ def test_open_support_request_counts_messages():
                     tokens_sent=1,
                     tokens_received=2,
                     session_id=session_id,
+                    theme=THEME,
+                    user_id=USER_ID,
                 ),
                 CustomerSupportChatbotAI(
                     question="q2",
@@ -83,6 +94,8 @@ def test_open_support_request_counts_messages():
                     tokens_sent=1,
                     tokens_received=2,
                     session_id=session_id,
+                    theme=THEME,
+                    user_id=USER_ID,
                 ),
             ]
         )
@@ -95,3 +108,10 @@ def test_open_support_request_counts_messages():
     assert data["message_amount"] == 2
     assert isinstance(data["id"], int)
     assert data["date_added"] is not None
+    assert data["theme"] == THEME
+    assert data["user_id"] == USER_ID
+
+    with SessionLocal() as session:
+        saved_request = session.query(SupportRequest).filter_by(session_id=session_id).one()
+        assert saved_request.theme == THEME
+        assert saved_request.user_id == USER_ID

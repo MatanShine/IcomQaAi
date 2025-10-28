@@ -22,6 +22,16 @@ def get_db() -> Session:
 logger = logging.getLogger("services")
 router = APIRouter()
 
+
+def _extract_session_metadata(session_id: str) -> tuple[str | None, str | None]:
+    """Split the session identifier into its theme and user components."""
+    parts = session_id.split("_", 2)
+    if len(parts) < 2:
+        return None, None
+    theme, user_id = parts[0], parts[1]
+    return (theme or None), (user_id or None)
+
+
 class SingletonBot:
     def __init__(self, db: Session | None) -> None:
         # Build the bot once at startup using a throwaway session
@@ -88,28 +98,45 @@ def _build_history(db: Session, session_id: str) -> list[str]:
 def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
     history = _build_history(db, req.session_id)
     answer, retrieved, tokens_sent, tokens_received = svc.chat(bot, req.message, history)
+    theme, user_id = _extract_session_metadata(req.session_id)
     entry = CustomerSupportChatbotAI(question=req.message,
                                      answer=answer,
                                      context=retrieved,
                                      history=json.dumps(history),
                                      tokens_sent=tokens_sent,
                                      tokens_received=tokens_received,
-                                     session_id=req.session_id)
+                                     session_id=req.session_id,
+                                     theme=theme,
+                                     user_id=user_id)
     db.add(entry)
     db.commit()
     return ChatResponse(response=answer)
 
 @router.post("/open_support_request", response_model=SupportRequestResponse)
 def open_support_request(req: SupportRequestCreate, db: Session = Depends(get_db)):
-    support_request = SupportRequest(session_id=req.session_id)
+    theme, user_id = _extract_session_metadata(req.session_id)
+    support_request = SupportRequest(session_id=req.session_id, theme=theme, user_id=user_id)
     db.add(support_request)
     db.commit()
     db.refresh(support_request)
-    return SupportRequestResponse(id=support_request.id, session_id=support_request.session_id)
+    message_amount = (
+        db.query(CustomerSupportChatbotAI)
+        .filter(CustomerSupportChatbotAI.session_id == req.session_id)
+        .count()
+    )
+    return SupportRequestResponse(
+        id=support_request.id,
+        session_id=support_request.session_id,
+        message_amount=message_amount,
+        date_added=support_request.date_added,
+        theme=support_request.theme,
+        user_id=support_request.user_id,
+    )
 
 @router.post("/chat/stream", response_model=ChatResponse)
 async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
     history = _build_history(db, req.session_id)
+    theme, user_id = _extract_session_metadata(req.session_id)
 
     async def token_generator():
         full_answer = []
@@ -136,7 +163,9 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGC
             history=json.dumps(history),
             tokens_sent=tokens_sent,
             tokens_received=tokens_received,
-            session_id=req.session_id
+            session_id=req.session_id,
+            theme=theme,
+            user_id=user_id
         ))
         db.commit()
         # Send a final empty message to signal completion

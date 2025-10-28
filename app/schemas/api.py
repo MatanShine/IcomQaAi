@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -7,7 +9,7 @@ class ChatRequest(BaseModel):
         description="The new message from the user",
     )
     session_id: str = Field(
-        example="abc123",
+        example="icrmsw_8940_1761630008.5447",
         description="Identifier for the user session",
     )
 
@@ -22,7 +24,7 @@ class OperationResponse(BaseModel):
 
 class SupportRequestCreate(BaseModel):
     session_id: str = Field(
-        example="abc123",
+        example="icrmsw_8940_1761630008.5447",
         description="Identifier for the user session that will be escalated to support",
     )
 
@@ -30,3 +32,7 @@ class SupportRequestCreate(BaseModel):
 class SupportRequestResponse(BaseModel):
     id: int
     session_id: str
+    message_amount: int
+    date_added: datetime
+    theme: str | None = None
+    user_id: str | None = None
