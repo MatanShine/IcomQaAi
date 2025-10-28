@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 
@@ -32,7 +30,5 @@ class SupportRequestCreate(BaseModel):
 class SupportRequestResponse(BaseModel):
     id: int
     session_id: str
-    message_amount: int
-    date_added: datetime
     theme: str | None = None
     user_id: str | None = None

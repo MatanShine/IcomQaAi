@@ -119,16 +119,9 @@ def open_support_request(req: SupportRequestCreate, db: Session = Depends(get_db
     db.add(support_request)
     db.commit()
     db.refresh(support_request)
-    message_amount = (
-        db.query(CustomerSupportChatbotAI)
-        .filter(CustomerSupportChatbotAI.session_id == req.session_id)
-        .count()
-    )
     return SupportRequestResponse(
         id=support_request.id,
         session_id=support_request.session_id,
-        message_amount=message_amount,
-        date_added=support_request.date_added,
         theme=support_request.theme,
         user_id=support_request.user_id,
     )
