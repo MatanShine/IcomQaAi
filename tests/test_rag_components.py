@@ -31,10 +31,11 @@ class _FakeDB:
 
 
 class _FakeItem:
-    def __init__(self, question: str, answer: str, url: str):
+    def __init__(self, question: str, answer: str, url: str, item_id: int):
         self.question = question
         self.answer = answer
         self.url = url
+        self.id = item_id
 
 
 def test_prompt_builder_creates_expected_json():
@@ -51,16 +52,17 @@ def test_prompt_builder_creates_expected_json():
 def test_bm25_retriever_returns_context(tmp_path):
     logger = logging.getLogger("test-bm25")
     items = [
-        _FakeItem("What is Zebra?", "Zebra is great.", "https://example.com/1"),
-        _FakeItem("How to login?", "Use your credentials.", "https://example.com/2"),
+        _FakeItem("What is Zebra?", "Zebra is great.", "https://example.com/1", 1),
+        _FakeItem("How to login?", "Use your credentials.", "https://example.com/2", 2),
     ]
     db = _FakeDB(items)
     index_path = tmp_path / "index.json"
 
     retriever = BM25Retriever(logger, db, str(index_path), top_k=1)
-    context = retriever.retrieve_contexts("login")
+    context, id_map = retriever.retrieve_contexts("login")
 
     assert "Use your credentials." in context
+    assert id_map == {2: "https://example.com/2"}
     assert index_path.exists()
 
 
@@ -109,8 +111,8 @@ def test_openai_chat_client_chat_and_stream(monkeypatch):
     assert completion_tokens == 5
 
     chunks = list(client.stream_chat("prompt"))
-    assert chunks[0] == {"token": "Hello", "prompt_tokens": 0, "completion_tokens": 0, "is_final": False}
-    assert chunks[-1] == {"token": "", "prompt_tokens": 10, "completion_tokens": 5, "is_final": True}
+    assert chunks[0] == ("Hello", 0, 0)
+    assert chunks[-1] == (None, 10, 5)
 
 
 @pytest.mark.asyncio
@@ -123,7 +125,7 @@ async def test_rag_chatbot_delegates_to_components(monkeypatch):
 
         def retrieve_contexts(self, query):
             events["retrieve"] = query
-            return "ctx"
+            return "ctx", {7: "https://example.com"}
 
     class _FakePromptBuilder:
         def __init__(self, instructions, max_history_messages):
@@ -139,12 +141,12 @@ async def test_rag_chatbot_delegates_to_components(monkeypatch):
 
         def chat(self, prompt):
             events["chat"] = prompt
-            return "answer", 1, 2
+            return "answer\nSource ID: 7", 1, 2
 
         def stream_chat(self, prompt):
             events["stream"] = prompt
-            yield {"token": "A", "prompt_tokens": 0, "completion_tokens": 0, "is_final": False}
-            yield {"token": "", "prompt_tokens": 3, "completion_tokens": 4, "is_final": True}
+            yield "answer\nSource ID: 7", 0, 0
+            yield None, 3, 4
 
     monkeypatch.setattr(manager, "BM25Retriever", _FakeRetriever)
     monkeypatch.setattr(manager, "PromptBuilder", _FakePromptBuilder)
@@ -153,7 +155,7 @@ async def test_rag_chatbot_delegates_to_components(monkeypatch):
     bot = RAGChatbot(logging.getLogger("test-rag"), db=object(), index_path="path", max_history_messages=5, top_k=2)
 
     response = bot.chat("message", ["h1"])
-    assert response == ("answer", "ctx", 1, 2)
+    assert response == ("answer\nSource ID: 7\nlink: https://example.com", "ctx", 1, 2)
     assert events["retrieve"] == "message"
     assert events["build"] == (["h1"], "message", "ctx")
     assert events["chat"] == "prompt"
@@ -162,5 +164,9 @@ async def test_rag_chatbot_delegates_to_components(monkeypatch):
     async for chunk in bot.stream_chat("message", ["h1"]):
         chunks.append(chunk)
 
-    assert chunks == [("A", "ctx", 0, 0), ("", "ctx", 3, 4)]
+    assert chunks == [
+        ("answer\nSource ID: 7", None, 0, 0),
+        ("\nlink: https://example.com", None, 3, 4),
+        (None, "ctx", 3, 4),
+    ]
     assert events["stream"] == "prompt"
