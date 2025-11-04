@@ -2,21 +2,12 @@ from __future__ import annotations
 from typing import List
 from sqlalchemy.orm import Session
 from app.models.db import CustomerSupportChatbotData
-from app.services.rag_chatbot import RAGChatbot
 from app.services.scraping.scrape_cs import ZebraSupportScraper
 from app.services.scraping.scrape_postman import PostmanScraper
 from app.services.scraping.scrape_youtube import YoutubeScraper
 from app.services.training.rag import RAGTrainer
 import logging
 
-
-def chat(bot: RAGChatbot, message: str, history: List[str] = []) -> List[str]:
-    """Process a chat message."""
-    return bot.chat(message, history)
-
-def stream_chat(bot: RAGChatbot, message: str, history: List[str] = []) -> List[str]:
-    """Stream chat response."""
-    return bot.stream_chat(message, history)
 
 def _scrape_all(logger: logging.Logger) -> List[dict]:
     """Scrape data from all available sources."""
