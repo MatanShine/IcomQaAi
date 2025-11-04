@@ -6,7 +6,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 from rank_bm25 import BM25Okapi
 from sqlalchemy.orm import Session
@@ -36,15 +36,15 @@ class BM25Retriever:
         else:
             self.logger.warning("No passages available for retrieval; BM25 index not created.")
 
-    def retrieve_contexts(self, query: str) -> str:
-        """Tokenize the query, perform BM25 search, and return joined passages."""
+    def retrieve_contexts(self, query: str) -> Tuple[str, Dict[int, str]]:
+        """Tokenize the query, perform BM25 search, and return joined passages and url map."""
 
         if not self.bm25 or not self.passages:
-            return ""
+            return "", {}
 
         query_tokens = self._tokenize(query)
         if not query_tokens:
-            return ""
+            return "", {}
 
         scores = self.bm25.get_scores(query_tokens)
         top_indices = sorted(
@@ -54,16 +54,20 @@ class BM25Retriever:
         )[: self.top_k]
 
         retrieved_contexts = []
+        id_url_map: Dict[int, str] = {}
         for i in top_indices:
             item = self.passages[i]
+            item_id = item.get("id")
+            if isinstance(item_id, int):
+                id_url_map[item_id] = item.get("url", "")
             context_str = (
-                f"Source URL: {item.get('url', 'N/A')}\n"
+                f"Source ID: {item_id if item_id is not None else 'N/A'}\n"
                 f"Question: {item.get('question', 'N/A')}\n"
                 f"Answer: {item.get('text', '')}"
             )
             retrieved_contexts.append(context_str)
 
-        return "\n\n---\n\n".join(retrieved_contexts)
+        return "\n\n---\n\n".join(retrieved_contexts), id_url_map
 
     # ----------------------- Internal helpers -----------------------
     def _load_passages(self, db: Session, index_path: str) -> None:
@@ -113,6 +117,7 @@ class BM25Retriever:
                 "text": item.answer or "",
                 "question": item.question or "",
                 "url": item.url or "",
+                "id": item.id,
             }
             tokens = self._tokenize(self._combine_passage_fields(passage))
             passage["tokens"] = tokens
