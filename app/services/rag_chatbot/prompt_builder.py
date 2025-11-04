@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Sequence
+from typing import List
 
 
 class PromptBuilder:
@@ -13,16 +13,11 @@ class PromptBuilder:
         self._system_instruction = system_instruction
         self._max_history_messages = max_history_messages
 
-    def build_prompt(
-        self,
-        history: Sequence[str],
-        new_message: str,
-        context_text: str,
-    ) -> str:
+    def build_prompt(self, history: List[str], new_message: str, context_text: str) -> str:
         """Return a JSON prompt string using the provided conversation context."""
 
         history_text = "["
-        for index, message in enumerate(history[: self._max_history_messages]):
+        for index, message in enumerate(history[-self._max_history_messages:]):
             prefix = "User" if index % 2 == 0 else "Assistant"
             history_text += f"{prefix}: {message}\n"
         history_text += "]"

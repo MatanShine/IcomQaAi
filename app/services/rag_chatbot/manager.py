@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import List, Tuple
 
@@ -37,34 +38,36 @@ class RAGChatbot:
         self.logger.debug("User message: %s", message)
         retrieved = self.retriever.retrieve_contexts(message)
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
+        answer, prompt_tokens, completion_tokens = self.openai_client.chat(prompt)
+        return answer, retrieved, prompt_tokens, completion_tokens
 
-        try:
-            answer, prompt_tokens, completion_tokens = self.openai_client.chat(prompt)
-            return answer, retrieved, prompt_tokens, completion_tokens
-        except Exception as exc:  # pragma: no cover - network errors
-            return (
-                f"An error occurred while contacting the language model: {exc}",
-                retrieved,
-                0,
-                0,
-            )
 
     async def stream_chat(self, message: str, history: List[str]):
         self.logger.debug("User message: %s", message)
         retrieved = self.retriever.retrieve_contexts(message)
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
-
+        
         try:
-            for chunk in self.openai_client.stream_chat(prompt):
-                if chunk["is_final"]:
-                    yield "", retrieved, chunk["prompt_tokens"], chunk["completion_tokens"]
-                else:
-                    yield chunk["token"], retrieved, 0, 0
-        except Exception as exc:  # pragma: no cover - network errors
-            yield (
-                f"An error occurred while contacting the language model: {exc}",
-                retrieved,
-                0,
-                0,
-            )
+            queue: asyncio.Queue[Tuple[str | None, int | None, int | None]] = asyncio.Queue()
+            def _run_blocking():
+                try:
+                    for token, prompt_tokens, completion_tokens in self.openai_client.stream_chat(prompt):
+                        # push each token as it arrives
+                        queue.put_nowait((token, prompt_tokens, completion_tokens))
+                finally:
+                    # sentinel to signal completion
+                    queue.put_nowait((None, None, None))
 
+            # start the blocking iterator in a worker thread
+            thread_task = asyncio.create_task(asyncio.to_thread(_run_blocking))
+            while True:
+                token, prompt_tokens, completion_tokens = await queue.get()
+                if token is None:
+                    yield token, retrieved, prompt_tokens, completion_tokens
+                else:
+                    yield token, None, prompt_tokens, completion_tokens
+                    break
+            # ensure the worker finishes
+            await thread_task
+        except Exception as e:
+            yield f"An error occurred while contacting the language model: {e}", retrieved, 0, 0

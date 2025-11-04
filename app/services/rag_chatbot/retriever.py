@@ -49,13 +49,13 @@ class BM25Retriever:
         scores = self.bm25.get_scores(query_tokens)
         top_indices = sorted(
             range(len(scores)),
-            key=lambda index: scores[index],
+            key=lambda i: scores[i],
             reverse=True,
         )[: self.top_k]
 
         retrieved_contexts = []
-        for passage_index in top_indices:
-            item = self.passages[passage_index]
+        for i in top_indices:
+            item = self.passages[i]
             context_str = (
                 f"Source URL: {item.get('url', 'N/A')}\n"
                 f"Question: {item.get('question', 'N/A')}\n"
@@ -77,8 +77,8 @@ class BM25Retriever:
         if not index_path or not Path(index_path).exists():
             return False
         try:
-            with open(index_path, "r", encoding="utf-8") as handle:
-                data = json.load(handle)
+            with open(index_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
         except (OSError, json.JSONDecodeError) as exc:
             self.logger.warning("Failed to load BM25 data from %s: %s", index_path, exc)
             return False
@@ -101,6 +101,7 @@ class BM25Retriever:
         return True
 
     def _load_passages_from_db(self, db: Session) -> None:
+        """Load passages from the database and prepare for retrieval."""
         self.logger.info("Loading passages from database...")
         db_items = db.query(CustomerSupportChatbotData).all()
         self.passages = []
@@ -125,8 +126,8 @@ class BM25Retriever:
             return
         try:
             Path(index_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(index_path, "w", encoding="utf-8") as handle:
-                json.dump({"passages": self.passages}, handle, ensure_ascii=False)
+            with open(index_path, "w", encoding="utf-8") as f:
+                json.dump({"passages": self.passages}, f, ensure_ascii=False)
             self.logger.info(
                 "Persisted %d passages to %s for BM25 retrieval.",
                 len(self.passages),

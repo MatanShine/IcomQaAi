@@ -97,7 +97,7 @@ def _build_history(db: Session, session_id: str) -> list[str]:
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
     history = _build_history(db, req.session_id)
-    answer, retrieved, tokens_sent, tokens_received = svc.chat(bot, req.message, history)
+    answer, retrieved, tokens_sent, tokens_received = bot.chat(req.message, history)
     theme, user_id = _extract_session_metadata(req.session_id)
     entry = CustomerSupportChatbotAI(question=req.message,
                                      answer=answer,
@@ -138,7 +138,7 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGC
         retrieved = ""
 
         # Consume the generator and stream tokens
-        async for delta in svc.stream_chat(bot, req.message, history):
+        async for delta in bot.stream_chat(req.message, history):
             token, retrieved, t_sent, t_received = delta
             if token:  # Only process non-empty tokens
                 full_answer.append(token)

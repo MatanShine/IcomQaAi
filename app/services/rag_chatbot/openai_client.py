@@ -23,39 +23,29 @@ class OpenAIChatClient:
             logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
         self._client = OpenAI(api_key=api_key)
 
-    def chat(
-        self,
-        prompt: str,
-        *,
-        model: str = "gpt-4o-mini",
-        max_tokens: int = 600,
-        temperature: float = 0.2,
-    ) -> tuple[str, int, int]:
+    def chat(self, prompt: str, *, model: str = settings.MODEL, max_tokens: int = settings.MAX_TOKEN_RESPONSE, temperature: float = settings.TEMPERATURE_RESPONSE) -> tuple[str, int, int]:
         """Send a chat completion request and return text with usage statistics."""
+        try:
+            response = self._client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            usage = response.usage
+            prompt_tokens = usage.prompt_tokens if usage else 0
+            completion_tokens = usage.completion_tokens if usage else 0
+            content = response.choices[0].message.content or ""
+            return content.strip(), prompt_tokens, completion_tokens
+        except Exception as e:  # pragma: no cover - network errors
+            return f"An error occurred while contacting the language model: {e}", 0, 0
 
-        response = self._client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-        usage = response.usage
-        prompt_tokens = usage.prompt_tokens if usage else 0
-        completion_tokens = usage.completion_tokens if usage else 0
-        content = response.choices[0].message.content or ""
-        return content.strip(), prompt_tokens, completion_tokens
-
-    def stream_chat(
-        self,
-        prompt: str,
-        *,
-        model: str = "gpt-4o-mini",
-        max_tokens: int = 400,
-        temperature: float = 0.2,
-    ) -> Generator[dict, None, None]:
+    def stream_chat(self, prompt: str, *, model: str = settings.MODEL, max_tokens: int = settings.MAX_TOKEN_RESPONSE, temperature: float = settings.TEMPERATURE_RESPONSE):
         """Stream chat completion chunks, yielding tokens and final usage."""
 
         last_chunk = None
+        prompt_tokens = 0
+        completion_tokens = 0
         for chunk in self._client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
@@ -68,18 +58,9 @@ class OpenAIChatClient:
             if not chunk.choices:
                 continue
             token = chunk.choices[0].delta.content or ""
-            if token:
-                yield {"token": token, "prompt_tokens": 0, "completion_tokens": 0, "is_final": False}
+            yield token, prompt_tokens, completion_tokens
 
-        prompt_tokens = 0
-        completion_tokens = 0
-        if last_chunk is not None and hasattr(last_chunk, "usage") and last_chunk.usage:
+        if last_chunk is not None and hasattr(last_chunk, "usage"):
             prompt_tokens = last_chunk.usage.prompt_tokens
             completion_tokens = last_chunk.usage.completion_tokens
-
-        yield {
-            "token": "",
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "is_final": True,
-        }
+        yield None, prompt_tokens, completion_tokens
