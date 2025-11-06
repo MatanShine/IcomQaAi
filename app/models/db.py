@@ -41,6 +41,7 @@ class CustomerSupportChatbotAI(Base):
     theme = Column(String, nullable=True)
     user_id = Column(String, nullable=True)
     date_asked = Column(DateTime, default=datetime.now(), nullable=False)
+    duration = Column(Integer, nullable=True)
 
 
 class SupportRequest(Base):

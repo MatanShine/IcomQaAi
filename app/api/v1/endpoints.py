@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, Depends
 from fastapi import BackgroundTasks
 from fastapi.responses import StreamingResponse
@@ -31,6 +32,8 @@ def _extract_session_metadata(session_id: str) -> tuple[str | None, str | None]:
     theme, user_id = parts[0], parts[1]
     return (theme or None), (user_id or None)
 
+def normalize_keys(d: dict) -> dict:
+    return {str(k): v for k, v in d.items()}
 
 class SingletonBot:
     def __init__(self, db: Session | None) -> None:
@@ -96,17 +99,19 @@ def _build_history(db: Session, session_id: str) -> list[str]:
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
+    start_time = time.time()
     history = _build_history(db, req.session_id)
     answer, retrieved, tokens_sent, tokens_received = bot.chat(req.message, history)
     theme, user_id = _extract_session_metadata(req.session_id)
     entry = CustomerSupportChatbotAI(question=req.message,
                                      answer=answer,
-                                     context=retrieved,
+                                     context=json.dumps(normalize_keys(retrieved), ensure_ascii=False),
                                      history=json.dumps(history),
                                      tokens_sent=tokens_sent,
                                      tokens_received=tokens_received,
                                      session_id=req.session_id,
                                      theme=theme,
+                                     duration=time.time() - start_time,
                                      user_id=user_id)
     db.add(entry)
     db.commit()
@@ -128,6 +133,7 @@ def open_support_request(req: SupportRequestCreate, db: Session = Depends(get_db
 
 @router.post("/chat/stream", response_model=ChatResponse)
 async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
+    start_time = time.time()
     history = _build_history(db, req.session_id)
     theme, user_id = _extract_session_metadata(req.session_id)
 
@@ -152,12 +158,13 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGC
         db.add(CustomerSupportChatbotAI(
             question=req.message,
             answer=answer,
-            context=retrieved,
+            context=json.dumps(normalize_keys(retrieved), ensure_ascii=False),
             history=json.dumps(history),
             tokens_sent=tokens_sent,
             tokens_received=tokens_received,
             session_id=req.session_id,
             theme=theme,
+            duration=time.time() - start_time,
             user_id=user_id
         ))
         db.commit()

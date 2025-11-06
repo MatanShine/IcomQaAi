@@ -1,18 +1,13 @@
 """RAG chatbot orchestration that coordinates retrieval, prompts, and LLM calls."""
 
 from __future__ import annotations
-
-import asyncio
 import logging
 from typing import List, Tuple
-
 from sqlalchemy.orm import Session
-
-from app.core.config import SYSTEM_INSTRUCTION, settings
+from app.core.config import settings
 from .openai_client import OpenAIChatClient
 from .prompt_builder import PromptBuilder
 from .retriever import BM25Retriever
-
 
 class RAGChatbot:
     """Retrieval-Augmented Generation chatbot that delegates to helper components."""
@@ -22,12 +17,12 @@ class RAGChatbot:
         logger: logging.Logger,
         db: Session,
         index_path: str = settings.index_file,
-        max_history_messages: int = 20,
-        top_k: int = 8,
+        max_history_messages: int = 10,
+        top_k: int = 5,
     ) -> None:
         self.logger = logger
         self.retriever = BM25Retriever(logger, db, index_path, top_k)
-        self.prompt_builder = PromptBuilder(SYSTEM_INSTRUCTION, max_history_messages)
+        self.prompt_builder = PromptBuilder(max_history_messages)
         self.openai_client = OpenAIChatClient(logger)
         self.logger.info("RAGChatbot initialized.")
 
@@ -37,37 +32,32 @@ class RAGChatbot:
 
         self.logger.debug("User message: %s", message)
         retrieved = self.retriever.retrieve_contexts(message)
+        self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
-        answer, prompt_tokens, completion_tokens = self.openai_client.chat(prompt)
+        answer, answerId, prompt_tokens, completion_tokens = self.openai_client.chat(prompt)
+        answer = self.add_url(retrieved, answer, answerId)
         return answer, retrieved, prompt_tokens, completion_tokens
 
 
     async def stream_chat(self, message: str, history: List[str]):
         self.logger.debug("User message: %s", message)
         retrieved = self.retriever.retrieve_contexts(message)
+        self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
-        
         try:
-            queue: asyncio.Queue[Tuple[str | None, int | None, int | None]] = asyncio.Queue()
-            def _run_blocking():
-                try:
-                    for token, prompt_tokens, completion_tokens in self.openai_client.stream_chat(prompt):
-                        # push each token as it arrives
-                        queue.put_nowait((token, prompt_tokens, completion_tokens))
-                finally:
-                    # sentinel to signal completion
-                    queue.put_nowait((None, None, None))
-
-            # start the blocking iterator in a worker thread
-            thread_task = asyncio.create_task(asyncio.to_thread(_run_blocking))
-            while True:
-                token, prompt_tokens, completion_tokens = await queue.get()
-                if token is None:
-                    yield token, retrieved, prompt_tokens, completion_tokens
-                else:
-                    yield token, None, prompt_tokens, completion_tokens
-                    break
-            # ensure the worker finishes
-            await thread_task
+            for token, answerId, prompt_tokens, completion_tokens in self.openai_client.stream_chat(prompt):
+                if token == "":
+                    token = self.add_url(retrieved, token, answerId)
+                yield token, None, prompt_tokens, completion_tokens
+            yield None, retrieved, prompt_tokens, completion_tokens
         except Exception as e:
             yield f"An error occurred while contacting the language model: {e}", retrieved, 0, 0
+
+    def add_url(self, retrieved: dict, text: str, answerId: int):
+        meta = retrieved.get(answerId)
+        if meta:
+            return text + "\nURL: " + meta[2] + "\n"
+        else:
+            self.logger.error("No metadata found for answerId: %d", answerId)
+            self.logger.error("retrieved ids: %s", retrieved.keys())
+            return text            

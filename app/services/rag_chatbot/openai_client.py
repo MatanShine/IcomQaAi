@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Generator
-
 from dotenv import load_dotenv
 from openai import OpenAI
+from .stream_response_seeker import StreamResponseSeeker
+from app.core.config import settings, SYSTEM_INSTRUCTION, MODEL
+from pydantic import BaseModel
 
-from app.core.config import settings
-
+class IdTextFormat(BaseModel):
+    response: str
+    responseSourceId: int
 
 class OpenAIChatClient:
     """Encapsulates OpenAI chat and streaming interactions."""
@@ -23,44 +26,40 @@ class OpenAIChatClient:
             logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
         self._client = OpenAI(api_key=api_key)
 
-    def chat(self, prompt: str, *, model: str = settings.MODEL, max_tokens: int = settings.MAX_TOKEN_RESPONSE, temperature: float = settings.TEMPERATURE_RESPONSE) -> tuple[str, int, int]:
+    def chat(self, prompt: str, *, model: str = MODEL) -> tuple[str, int, int, int]:
         """Send a chat completion request and return text with usage statistics."""
         try:
-            response = self._client.chat.completions.create(
+            response = self._client.responses.parse(
                 model=model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
+                input=prompt,
+                text_format=IdTextFormat,
+                instructions=json.dumps(SYSTEM_INSTRUCTION, ensure_ascii=False),
             )
+            parsed: IdTextFormat = response.output_parsed
             usage = response.usage
-            prompt_tokens = usage.prompt_tokens if usage else 0
-            completion_tokens = usage.completion_tokens if usage else 0
-            content = response.choices[0].message.content or ""
-            return content.strip(), prompt_tokens, completion_tokens
+            input_tokens = usage.input_tokens if usage else 0
+            output_tokens = usage.output_tokens if usage else 0
+            content = parsed.response or ""
+            return content.strip(), parsed.responseSourceId, input_tokens, output_tokens
         except Exception as e:  # pragma: no cover - network errors
-            return f"An error occurred while contacting the language model: {e}", 0, 0
+            return f"An error occurred while contacting the language model: {e}", 0, 0, 0
 
-    def stream_chat(self, prompt: str, *, model: str = settings.MODEL, max_tokens: int = settings.MAX_TOKEN_RESPONSE, temperature: float = settings.TEMPERATURE_RESPONSE):
+    def stream_chat(self, prompt: str, *, model: str = MODEL):
         """Stream chat completion chunks, yielding tokens and final usage."""
-
-        last_chunk = None
-        prompt_tokens = 0
-        completion_tokens = 0
-        for chunk in self._client.chat.completions.create(
+        response_streamer = StreamResponseSeeker()
+        with self._client.responses.stream(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=True,
-            stream_options={"include_usage": True},
-            max_tokens=max_tokens,
-            temperature=temperature,
-        ):
-            last_chunk = chunk
-            if not chunk.choices:
-                continue
-            token = chunk.choices[0].delta.content or ""
-            yield token, prompt_tokens, completion_tokens
-
-        if last_chunk is not None and hasattr(last_chunk, "usage"):
-            prompt_tokens = last_chunk.usage.prompt_tokens
-            completion_tokens = last_chunk.usage.completion_tokens
-        yield None, prompt_tokens, completion_tokens
+            input=prompt,
+            text_format=IdTextFormat,
+            instructions=json.dumps(SYSTEM_INSTRUCTION, ensure_ascii=False),
+        ) as stream:
+            for chunk in stream:
+                if chunk.type == "response.output_text.delta":
+                    for char in response_streamer.feed(chunk.delta):
+                        yield char, 0, 0, 0
+                elif chunk.type == "response.completed":
+                    full = stream.get_final_response()
+                    input_tokens = full.usage.input_tokens if full.usage else 0
+                    output_tokens = full.usage.output_tokens if full.usage else 0
+                    final_parsed: IdTextFormat = full.output_parsed
+                    yield "", final_parsed.responseSourceId, input_tokens, output_tokens
