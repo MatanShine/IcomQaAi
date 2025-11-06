@@ -1,18 +1,14 @@
 """BM25 based passage retrieval for the RAG chatbot."""
 
 from __future__ import annotations
-
 import json
 import logging
 import re
 from pathlib import Path
-from typing import List
-
+from typing import Tuple, List
 from rank_bm25 import BM25Okapi
 from sqlalchemy.orm import Session
-
 from app.models.db import CustomerSupportChatbotData
-
 
 class BM25Retriever:
     """Loads passages and performs BM25 retrieval."""
@@ -36,15 +32,15 @@ class BM25Retriever:
         else:
             self.logger.warning("No passages available for retrieval; BM25 index not created.")
 
-    def retrieve_contexts(self, query: str) -> str:
-        """Tokenize the query, perform BM25 search, and return joined passages."""
+    def retrieve_contexts(self, query: str) -> dict[int, Tuple[str, str, str]]:
+        """Tokenize the query, perform BM25 search, and return top_k.
+        Returns a dictionary mapping passage index to [question, answer, url]."""
 
         if not self.bm25 or not self.passages:
-            return ""
-
-        query_tokens = self._tokenize(query)
+            return {}
+        query_tokens = self._tokenize_doc_for_bm25(query)
         if not query_tokens:
-            return ""
+            return {}
 
         scores = self.bm25.get_scores(query_tokens)
         top_indices = sorted(
@@ -53,17 +49,15 @@ class BM25Retriever:
             reverse=True,
         )[: self.top_k]
 
-        retrieved_contexts = []
+        result: dict[int, Tuple[str, str, str]] = {}
         for i in top_indices:
             item = self.passages[i]
-            context_str = (
-                f"Source URL: {item.get('url', 'N/A')}\n"
-                f"Question: {item.get('question', 'N/A')}\n"
-                f"Answer: {item.get('text', '')}"
+            result[i] = (
+                item.get("question", ""),
+                item.get("text", ""),
+                item.get("url", ""),
             )
-            retrieved_contexts.append(context_str)
-
-        return "\n\n---\n\n".join(retrieved_contexts)
+        return result
 
     # ----------------------- Internal helpers -----------------------
     def _load_passages(self, db: Session, index_path: str) -> None:
@@ -93,7 +87,7 @@ class BM25Retriever:
         for passage in self.passages:
             tokens = passage.get("tokens")
             if not tokens:
-                tokens = self._tokenize(self._combine_passage_fields(passage))
+                tokens = self._tokenize_doc_for_bm25(self._combine_passage_fields(passage))
                 passage["tokens"] = tokens
             self.tokenized_passages.append(tokens)
 
@@ -114,7 +108,7 @@ class BM25Retriever:
                 "question": item.question or "",
                 "url": item.url or "",
             }
-            tokens = self._tokenize(self._combine_passage_fields(passage))
+            tokens = self._tokenize_doc_for_bm25(self._combine_passage_fields(passage))
             passage["tokens"] = tokens
             self.passages.append(passage)
             self.tokenized_passages.append(tokens)
@@ -135,6 +129,24 @@ class BM25Retriever:
             )
         except OSError as exc:
             self.logger.warning("Failed to persist BM25 data to %s: %s", index_path, exc)
+
+    def _char_ngrams(self, token: str, n: int = 3) -> list[str]:
+        if len(token) < n:
+            return []
+        return [f"§{token[i:i+n]}" for i in range(len(token)-n+1)]
+        # '§' prefix keeps them distinct from word tokens
+
+    def _tokenize_doc_for_bm25(self, text: str) -> list[str]:
+        toks = self._tokenize(text)
+        out = []
+        for t in toks:
+            out.append(t)
+            if self._is_hebrew(t):
+                out.extend(self._char_ngrams(t, 3))
+        return out
+
+    def _is_hebrew(self, token: str) -> bool:
+        return any(ord(c) >= 0x590 and ord(c) <= 0x5FF for c in token)
 
     def _tokenize(self, text: str) -> List[str]:
         return re.findall(r"\w+", text.lower())

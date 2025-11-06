@@ -1,19 +1,16 @@
 """Utilities for constructing prompts for the RAG chatbot."""
 
 from __future__ import annotations
-
 import json
-from typing import List
-
+from typing import List, Tuple
 
 class PromptBuilder:
     """Builds structured prompts for the language model."""
 
-    def __init__(self, system_instruction: dict, max_history_messages: int) -> None:
-        self._system_instruction = system_instruction
+    def __init__(self, max_history_messages: int) -> None:
         self._max_history_messages = max_history_messages
 
-    def build_prompt(self, history: List[str], new_message: str, context_text: str) -> str:
+    def build_prompt(self, history: List[str], new_message: str, context: dict[int, Tuple[str, str, str]]) -> str:
         """Return a JSON prompt string using the provided conversation context."""
 
         history_text = "["
@@ -21,11 +18,23 @@ class PromptBuilder:
             prefix = "User" if index % 2 == 0 else "Assistant"
             history_text += f"{prefix}: {message}\n"
         history_text += "]"
+        
+        context_text = "["
+        for index, (question, answer, _) in context.items():
+            context_text += f"ID: {index}\nQuestion: {question}\nAnswer: {answer}\n"
+        context_text += "]"
+        
+        prompt = f"""
+<Conversation>
+{history_text}
+</Conversation>
 
-        prompt_data = {
-            "instructions": self._system_instruction,
-            "conversation_history": history_text,
-            "retrieved_context_from_manual": context_text,
-            "user_question": new_message,
-        }
-        return json.dumps(prompt_data, ensure_ascii=False, indent=2)
+<Context>
+{context_text}
+</Context>
+
+<NewMessage>
+User: {new_message}
+</NewMessage>
+""".strip()
+        return prompt
