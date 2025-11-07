@@ -19,11 +19,12 @@ class OpenAIChatClient:
 
     def __init__(self, logger: logging.Logger) -> None:
         load_dotenv()
+        self.logger = logger
         api_key = settings.openai_api_key
         if api_key:
-            logger.info("OPENAI_API_KEY loaded successfully.")
+            self.logger.info("OPENAI_API_KEY loaded successfully.")
         else:
-            logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
+            self.logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
         self._client = OpenAI(api_key=api_key)
 
     def chat(self, prompt: str, *, model: str = MODEL) -> tuple[str, int, int, int]:

@@ -1,6 +1,7 @@
 """RAG chatbot orchestration that coordinates retrieval, prompts, and LLM calls."""
 
 from __future__ import annotations
+import asyncio
 import logging
 from typing import List, Tuple
 from sqlalchemy.orm import Session
@@ -45,11 +46,26 @@ class RAGChatbot:
         self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
         try:
-            for token, answerId, prompt_tokens, completion_tokens in self.openai_client.stream_chat(prompt):
+            queue: asyncio.Queue[Tuple[str | None, int | None, int | None]] = asyncio.Queue()
+            def _run_blocking():
+                try:
+                    for token, answerId, prompt_tokens, completion_tokens in self.openai_client.stream_chat(prompt):
+                        queue.put_nowait((token, answerId, prompt_tokens, completion_tokens))
+                finally:
+                    queue.put_nowait((None, None, None, None))
+            thread_task = asyncio.create_task(asyncio.to_thread(_run_blocking))
+            while True:
+                token, answerId, prompt_tokens, completion_tokens = await queue.get()
                 if token == "":
                     token = self.add_url(retrieved, token, answerId)
-                yield token, None, prompt_tokens, completion_tokens
-            yield None, retrieved, prompt_tokens, completion_tokens
+                    yield token, None, prompt_tokens, completion_tokens
+                elif token is None:
+                    yield None, retrieved, prompt_tokens, completion_tokens
+                    break
+                else:
+                    yield token, None, prompt_tokens, completion_tokens
+            # ensure the worker finishes
+            await thread_task
         except Exception as e:
             yield f"An error occurred while contacting the language model: {e}", retrieved, 0, 0
 
@@ -60,4 +76,4 @@ class RAGChatbot:
         else:
             self.logger.error("No metadata found for answerId: %d", answerId)
             self.logger.error("retrieved ids: %s", retrieved.keys())
-            return text            
+            return text
