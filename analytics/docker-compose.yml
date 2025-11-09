@@ -1,0 +1,17 @@
+version: '3.9'
+services:
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=4000
+    ports:
+      - '4000:4000'
+  frontend:
+    build: ./frontend
+    environment:
+      - VITE_API_BASE_URL=http://backend:4000/api
+    ports:
+      - '8080:80'
+    depends_on:
+      - backend
