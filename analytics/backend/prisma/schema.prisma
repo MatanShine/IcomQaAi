@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model customer_support_chatbot_ai {
+  id           Int       @id
+  session_id   String
+  user_id      String?
+  question     String
+  answer       String
+  theme        String?
+  date_asked   DateTime?
+  duration     Int?
+  tokens_used  Int?
+}
+
+model support_requests {
+  id                Int      @id
+  session_id        String
+  user_id           String?
+  theme             String?
+  status            String?
+  date_added        DateTime?
+  escalation_reason String?
+}
