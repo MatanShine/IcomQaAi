@@ -9,6 +9,8 @@ from typing import Tuple, List
 from rank_bm25 import BM25Okapi
 from sqlalchemy.orm import Session
 from app.models.db import CustomerSupportChatbotData
+from app.services.rag_chatbot.openai_client import OpenAI
+from app.core.config import settings, MODEL
 
 class BM25Retriever:
     """Loads passages and performs BM25 retrieval."""
@@ -31,18 +33,42 @@ class BM25Retriever:
             self.logger.info("BM25 index built for %d passages.", len(self.passages))
         else:
             self.logger.warning("No passages available for retrieval; BM25 index not created.")
+        api_key = settings.openai_api_key
+        if api_key:
+            self.logger.info("OPENAI_API_KEY loaded successfully.")
+        else:
+            self.logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
+        self._client = OpenAI(api_key=api_key)
 
-    def retrieve_contexts(self, query: str) -> dict[int, Tuple[str, str, str]]:
+    def retrieve_contexts(self, query: str, history: List[str]) -> dict[int, Tuple[str, str, str]]:
         """Tokenize the query, perform BM25 search, and return top_k.
         Returns a dictionary mapping passage index to [question, answer, url]."""
 
         if not self.bm25 or not self.passages:
             return {}
-        query_tokens = self._tokenize_doc_for_bm25(query)
-        if not query_tokens:
-            return {}
+        variation = query
+        if history != []:
+            self.logger.info("History: %s", history)
+            try:
+                another_variation = self._client.responses.create(
+                                model=MODEL,
+                                input=f"""You are a query rewriter. Given the chat history and the latest user turn,
+rewrite the user turn into a standalone search query that preserves meaning.
+History:
+{history[-4:]}
+User turn: {query}
+Return ONLY the rewritten query.""",
+                                max_output_tokens=200
+                            )
+                self.logger.info("Another variation: %s", another_variation.output_text)
+                variation = another_variation.output_text
+            except Exception as e:
+                self.logger.error("Failed to generate another variation: %s", e)
 
-        scores = self.bm25.get_scores(query_tokens)
+        tokens = self._tokenize_doc_for_bm25(variation)
+        if not tokens:
+            return {}
+        scores = self.bm25.get_scores(tokens)
         top_indices = sorted(
             range(len(scores)),
             key=lambda i: scores[i],
