@@ -31,5 +31,28 @@ services:
       - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+  analytics-backend:
+    build:
+      context: ./analytics/backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4001
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/icomqaai
+    ports:
+      - "4001:4001"
+
+  analytics-frontend:
+    build:
+      context: ./analytics/frontend
+    depends_on:
+      analytics-backend:
+        condition: service_started
+    environment:
+      VITE_ANALYTICS_API_BASE_URL: http://analytics-backend:4001
+    ports:
+      - "4173:4173"
+
 volumes:
   db_data:

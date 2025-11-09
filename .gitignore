@@ -66,6 +66,12 @@ venv.bak/
 # OS-specific
 .DS_Store
 
+# Node projects
+node_modules/
+analytics/backend/node_modules/
+analytics/frontend/node_modules/
+analytics/frontend/dist/
+
 # Data files
 /data/*.index
 /data/*.json
