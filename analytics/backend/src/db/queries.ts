@@ -67,8 +67,15 @@ export const fetchSummaryMetrics = async ({ from, to, theme, userId }: SummaryFi
   };
 };
 
+type IdkSessionGroup = {
+  session_id: string | null;
+  _count: {
+    session_id: number;
+  };
+};
+
 export const fetchIdkSessions = async () => {
-  const sessions = await prisma.customer_support_chatbot_ai.groupBy({
+  const sessions = (await prisma.customer_support_chatbot_ai.groupBy({
     by: ['session_id'],
     where: {
       answer: {
@@ -77,11 +84,11 @@ export const fetchIdkSessions = async () => {
       },
     },
     _count: { session_id: true },
-  });
+  })) as IdkSessionGroup[];
 
-  return sessions.map((session) => ({
-    sessionId: session.session_id,
-    idkCount: session._count.session_id,
+  return sessions.map(({ session_id, _count }: IdkSessionGroup) => ({
+    sessionId: session_id,
+    idkCount: _count.session_id,
   }));
 };
 

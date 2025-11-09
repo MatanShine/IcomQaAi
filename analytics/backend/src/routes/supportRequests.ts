@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { getSupportRequests } from '../services/supportRequestsService';
 
@@ -11,7 +12,7 @@ const querySchema = z.object({
 
 export const supportRequestsRouter = Router();
 
-supportRequestsRouter.get('/', async (req, res, next) => {
+supportRequestsRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = querySchema.parse(req.query);
     const filters = {
