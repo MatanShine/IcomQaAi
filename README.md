@@ -60,6 +60,16 @@ The API will be available at <http://localhost:8000>.
 The PostgreSQL database is exposed on port `5433` with the default database
 name `icomqaai`.
 
+### Analytics dashboard
+
+Docker Compose also provisions a lightweight analytics stack:
+
+- **Analytics backend** (Node.js/Express) at <http://localhost:4001> serving
+  the latest questions and answers from the `customer_support_chatbot_ai`
+  table.
+- **Analytics frontend** (React + Tailwind CSS) at <http://localhost:4173>
+  visualising the freshest conversations in a modern dashboard.
+
 
 ## Tests
 
