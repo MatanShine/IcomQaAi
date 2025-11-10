@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-1.1.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model customer_support_chatbot_ai {
+  id           Int       @id
+  session_id   String
+  user_id      String?
+  question     String
+  answer       String
+  context      String
+  history      String
+  theme        String?
+  date_asked   DateTime?
+  duration     Int?
+  tokens_sent  Int?
+  tokens_received  Int?
+}
+
+model support_requests {
+  id                Int      @id
+  session_id        String
+  user_id           String?
+  theme             String?
+  date_added        DateTime?
+}

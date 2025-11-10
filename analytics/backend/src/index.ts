@@ -2,6 +2,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import { Pool } from 'pg';
+import 'dotenv/config';
+import helmet from 'helmet';
+import { metricsRouter } from './routes/metrics';
+import { supportRequestsRouter } from './routes/supportRequests';
+import { errorHandler } from './middleware/errorHandler';
+import { validateEnv } from './env';
 
 dotenv.config();
 
@@ -19,8 +25,15 @@ const pool = new Pool({
 
 const app = express();
 
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
+validateEnv();
+
+app.use('/api/metrics', metricsRouter);
+app.use('/api/support-requests', supportRequestsRouter);
+
+app.use(errorHandler);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
@@ -28,7 +41,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.get('/api/analytics/qa', async (req: Request, res: Response) => {
   const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
-  const limit = Number.parseInt(limitParam ?? '20', 10);
+  const limit = Number.parseInt(limitParam as string ?? '20', 10);
 
   if (Number.isNaN(limit) || limit <= 0) {
     return res.status(400).json({ error: 'limit must be a positive integer' });

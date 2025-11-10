@@ -1,12 +1,14 @@
-FROM node:18-alpine AS base
+FROM node:18-alpine
+
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
+# Bring in the rest of the app
 COPY . .
 
-RUN npm run build
+ENV CHOKIDAR_USEPOLLING=true
 
 EXPOSE 4173
-CMD ["npm", "run", "preview"]
+CMD ["npm", "run", "dev"]

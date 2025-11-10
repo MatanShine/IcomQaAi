@@ -42,6 +42,11 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/icomqaai
     ports:
       - "4001:4001"
+    volumes:
+      - ./analytics/backend:/app        # Mount local source code
+      # - /app/node_modules               # Keep container's node_modules
+    command: npm run dev
+    restart: always
 
   analytics-frontend:
     build:
@@ -50,9 +55,15 @@ services:
       analytics-backend:
         condition: service_started
     environment:
-      VITE_ANALYTICS_API_BASE_URL: http://analytics-backend:4001
+      VITE_ANALYTICS_API_BASE_URL: http://localhost:4001/api
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "4173:4173"
+    volumes:
+      - ./analytics/frontend:/app            # live code mount
+      - /app/node_modules                    # keep container's node_modules separate
+    command: npm run dev
+    restart: always
 
 volumes:
   db_data:

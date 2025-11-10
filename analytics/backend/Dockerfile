@@ -1,13 +1,13 @@
-FROM node:18-alpine AS base
+FROM node:18-alpine
+
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY package*.json ./
 RUN npm install --legacy-peer-deps
+RUN apk add --no-cache openssl
 
-COPY tsconfig.json ./
-COPY src ./src
-
-RUN npm run build
+# Copy source code
+COPY . .
 
 EXPOSE 4001
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]
