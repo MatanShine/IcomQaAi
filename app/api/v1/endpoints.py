@@ -4,6 +4,7 @@ from fastapi import BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import json
+from datetime import datetime
 from app.models.db import init_db, SessionLocal
 from app.models.db import CustomerSupportChatbotAI, SupportRequest
 from app.schemas.api import (ChatRequest, ChatResponse, OperationResponse, SupportRequestCreate, SupportRequestResponse)
@@ -99,10 +100,11 @@ def _build_history(db: Session, session_id: str) -> list[str]:
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
-    start_time = time.time()
+    start_time = datetime.now()
     history = _build_history(db, req.session_id)
     answer, retrieved, tokens_sent, tokens_received = bot.chat(req.message, history)
     theme, user_id = _extract_session_metadata(req.session_id)
+    duration = (datetime.now() - start_time).total_seconds()
     entry = CustomerSupportChatbotAI(question=req.message,
                                      answer=answer,
                                      context=json.dumps(normalize_keys(retrieved), ensure_ascii=False),
@@ -111,8 +113,9 @@ def chat(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depe
                                      tokens_received=tokens_received,
                                      session_id=req.session_id,
                                      theme=theme,
-                                     duration=time.time() - start_time,
-                                     user_id=user_id)
+                                     duration=duration,
+                                     user_id=user_id,
+                                     date_asked=datetime.now())
     db.add(entry)
     db.commit()
     return ChatResponse(response=answer)
@@ -129,11 +132,11 @@ def open_support_request(req: SupportRequestCreate, db: Session = Depends(get_db
         session_id=support_request.session_id,
         theme=support_request.theme,
         user_id=support_request.user_id,
-    )
+        date_added=datetime.now())
 
 @router.post("/chat/stream", response_model=ChatResponse)
 async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGChatbot = Depends(get_bot)):
-    start_time = time.time()
+    start_time = datetime.now()
     history = _build_history(db, req.session_id)
     theme, user_id = _extract_session_metadata(req.session_id)
 
@@ -164,8 +167,9 @@ async def chat_stream(req: ChatRequest, db: Session = Depends(get_db), bot: RAGC
             tokens_received=tokens_received,
             session_id=req.session_id,
             theme=theme,
-            duration=time.time() - start_time,
-            user_id=user_id
+            duration=(datetime.now() - start_time).total_seconds(),
+            user_id=user_id,
+            date_asked=datetime.now()
         ))
         db.commit()
         # Send a final empty message to signal completion
