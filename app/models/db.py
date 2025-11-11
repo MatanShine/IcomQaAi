@@ -1,5 +1,5 @@
 from __future__ import annotations
-from sqlalchemy import Column, Integer, String, Text, DateTime, create_engine
+from sqlalchemy import Column, Integer, Float, String, Text, DateTime, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings
 from datetime import datetime
@@ -22,7 +22,7 @@ class CustomerSupportChatbotData(Base):
     type = Column(String, nullable=False, default="unknown")
     question = Column(Text, nullable=True)
     answer = Column(Text, nullable=True)
-    date_added = Column(DateTime, default=datetime.now(), nullable=False)
+    date_added = Column(DateTime, default=lambda: datetime.now(), nullable=False)
 
 
 class CustomerSupportChatbotAI(Base):
@@ -40,8 +40,8 @@ class CustomerSupportChatbotAI(Base):
     session_id = Column(String, nullable=False)
     theme = Column(String, nullable=True)
     user_id = Column(String, nullable=True)
-    date_asked = Column(DateTime, default=datetime.now(), nullable=False)
-    duration = Column(Integer, nullable=True)
+    date_asked = Column(DateTime, default=lambda: datetime.now(), nullable=False)
+    duration = Column(Float, nullable=True)
 
 
 class SupportRequest(Base):
@@ -53,7 +53,7 @@ class SupportRequest(Base):
     session_id = Column(String, nullable=False, index=True)
     theme = Column(String, nullable=True)
     user_id = Column(String, nullable=True)
-    date_added = Column(DateTime, default=datetime.now(), nullable=False)
+    date_added = Column(DateTime, default=lambda: datetime.now(), nullable=False)
 
 
 def init_db() -> None:
