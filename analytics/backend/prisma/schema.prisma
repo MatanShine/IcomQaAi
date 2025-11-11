@@ -14,11 +14,11 @@ model customer_support_chatbot_ai {
   user_id      String?
   question     String
   answer       String
-  context      String
-  history      String
+  context      String?
+  history      String?
   theme        String?
   date_asked   DateTime?
-  duration     Int?
+  duration     Float?
   tokens_sent  Int?
   tokens_received  Int?
 }

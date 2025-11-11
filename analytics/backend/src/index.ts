@@ -5,7 +5,6 @@ import { Pool } from 'pg';
 import 'dotenv/config';
 import helmet from 'helmet';
 import { metricsRouter } from './routes/metrics';
-import { supportRequestsRouter } from './routes/supportRequests';
 import { errorHandler } from './middleware/errorHandler';
 import { validateEnv } from './env';
 
@@ -31,7 +30,6 @@ app.use(express.json());
 validateEnv();
 
 app.use('/api/metrics', metricsRouter);
-app.use('/api/support-requests', supportRequestsRouter);
 
 app.use(errorHandler);
 

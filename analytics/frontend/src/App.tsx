@@ -1,7 +1,9 @@
 import { Route, Routes } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
-import { SupportRequestsPage } from './pages/SupportRequestsPage';
 import { UserDetailPage } from './pages/UserDetailPage';
+import { ChatHistoryPage } from './pages/ChatHistoryPage';
+import { UserUsagePage } from './pages/UserUsagePage';
+import { MonitoringPage } from './pages/MonitoringPage';
 import { Layout } from './components/Layout';
 
 const App = () => {
@@ -9,7 +11,9 @@ const App = () => {
     <Layout>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/support-requests" element={<SupportRequestsPage />} />
+        <Route path="/chat-history" element={<ChatHistoryPage />} />
+        <Route path="/user-usage" element={<UserUsagePage />} />
+        <Route path="/monitoring" element={<MonitoringPage />} />
         <Route path="/users/:userId" element={<UserDetailPage />} />
       </Routes>
     </Layout>
