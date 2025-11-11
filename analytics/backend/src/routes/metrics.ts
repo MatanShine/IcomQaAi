@@ -26,9 +26,15 @@ metricsRouter.get('/summary', async (req, res, next) => {
   }
 });
 
-metricsRouter.get('/idk/sessions', async (_req, res, next) => {
+metricsRouter.get('/idk/sessions', async (req, res, next) => {
   try {
-    const sessions = await getIdkSessions();
+    const parsed = querySchema.parse(req.query);
+    const filters = {
+      ...parsed,
+      from: parsed.from ? new Date(parsed.from) : undefined,
+      to: parsed.to ? new Date(parsed.to) : undefined,
+    };
+    const sessions = await getIdkSessions(filters);
     res.json(sessions);
   } catch (error) {
     next(error);

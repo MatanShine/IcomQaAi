@@ -76,4 +76,6 @@ analytics/frontend/dist/
 /data/*.index
 /data/*.json
 !/data/zebra_support_qa.json
-/data/passages.json 
+/data/passages.json
+!analytics/frontend/src/lib/
+!analytics/frontend/src/lib/api.ts
