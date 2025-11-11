@@ -7,6 +7,13 @@ export default defineConfig({
     host: true,          // 0.0.0.0
     port: 4173,
     strictPort: true,
-    hmr: { clientPort: 4173 }
+    hmr: { clientPort: 4173 },
+    proxy: {
+      '/api': {
+        target: 'http://analytics-backend:4001',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 });

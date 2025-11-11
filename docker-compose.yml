@@ -39,7 +39,7 @@ services:
         condition: service_healthy
     environment:
       PORT: 4001
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/icomqaai
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-icomqaai}
     ports:
       - "4001:4001"
     volumes:
@@ -55,7 +55,7 @@ services:
       analytics-backend:
         condition: service_started
     environment:
-      VITE_ANALYTICS_API_BASE_URL: http://localhost:4001/api
+      VITE_ANALYTICS_API_BASE_URL: ${VITE_ANALYTICS_API_BASE_URL:-http://172.16.1.180:4001/api}
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "4173:4173"
