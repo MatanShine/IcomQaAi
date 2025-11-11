@@ -44,8 +44,8 @@ services:
       - "4001:4001"
     volumes:
       - ./analytics/backend:/app        # Mount local source code
-      # - /app/node_modules               # Keep container's node_modules
-    command: npm run dev
+      - /app/node_modules               # Keep container's node_modules
+    command: sh -c "npx prisma generate && npm run dev"
     restart: always
 
   analytics-frontend:
