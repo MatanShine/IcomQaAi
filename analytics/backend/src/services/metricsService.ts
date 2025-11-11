@@ -1,5 +1,5 @@
-import { fetchSummaryMetrics, fetchIdkSessions, SummaryFilters } from '../db/queries';
+import { fetchSummaryMetrics, fetchRecentSessions, SummaryFilters } from '../db/queries';
 
 export const getSummaryMetrics = async (filters: SummaryFilters) => fetchSummaryMetrics(filters);
 
-export const getIdkSessions = async () => fetchIdkSessions();
+export const getRecentSessions = async (filters: SummaryFilters) => fetchRecentSessions(filters);

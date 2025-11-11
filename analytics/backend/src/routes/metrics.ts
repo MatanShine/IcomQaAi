@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getIdkSessions, getSummaryMetrics } from '../services/metricsService';
+import { getRecentSessions, getSummaryMetrics } from '../services/metricsService';
 
 const querySchema = z.object({
   from: z.string().optional(),
@@ -26,9 +26,16 @@ metricsRouter.get('/summary', async (req, res, next) => {
   }
 });
 
-metricsRouter.get('/idk/sessions', async (_req, res, next) => {
+metricsRouter.get('/sessions/recent', async (req, res, next) => {
   try {
-    const sessions = await getIdkSessions();
+    const parsed = querySchema.parse(req.query);
+    const filters = {
+      ...parsed,
+      from: parsed.from ? new Date(parsed.from) : undefined,
+      to: parsed.to ? new Date(parsed.to) : undefined,
+    };
+
+    const sessions = await getRecentSessions(filters);
     res.json(sessions);
   } catch (error) {
     next(error);

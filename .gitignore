@@ -71,6 +71,8 @@ node_modules/
 analytics/backend/node_modules/
 analytics/frontend/node_modules/
 analytics/frontend/dist/
+!analytics/frontend/src/lib/
+!analytics/frontend/src/lib/api.ts
 
 # Data files
 /data/*.index
