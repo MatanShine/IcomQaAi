@@ -11,6 +11,7 @@ class StreamResponseSeeker:
         self.key_buf = ""
         self.after_colon = False
         self.done = False
+        self.escaped = False  # Track if we're in an escape sequence
 
     def feed(self, chunk: str):
         if self.done:
@@ -49,7 +50,33 @@ class StreamResponseSeeker:
                 continue
 
             if self.state == "IN_STRING":
+                if self.escaped:
+                    # Handle escape sequences
+                    if ch == '"':
+                        yield '"'  # Escaped quote - yield it, don't end string
+                    elif ch == '\\':
+                        yield '\\'  # Escaped backslash
+                    elif ch == 'n':
+                        yield '\n'  # Newline
+                    elif ch == 't':
+                        yield '\t'  # Tab
+                    elif ch == 'r':
+                        yield '\r'  # Carriage return
+                    else:
+                        yield '\\'  # Unknown escape, yield backslash
+                        yield ch    # and the character
+                    self.escaped = False
+                    i += 1
+                    continue
+                
+                if ch == '\\':
+                    # Start of escape sequence
+                    self.escaped = True
+                    i += 1
+                    continue
+                
                 if ch == '"':
+                    # Unescaped quote - end of string
                     self.done = True
                     i += 1
                     continue
