@@ -36,6 +36,30 @@ const calculateQuantityDiff = (current: number, previous: number | undefined): D
   };
 };
 
+const calculateDecimalDiff = (current: number, previous: number | undefined): DiffResult | null => {
+  if (previous === undefined) return null;
+  
+  const diff = current - previous;
+  if (diff === 0) {
+    return {
+      formatted: '±0.00',
+      color: 'text-slate-500 dark:text-slate-400',
+      arrow: '-',
+    };
+  }
+  
+  const isPositive = diff > 0;
+  const color = isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+  const arrow = isPositive ? '↑' : '↓';
+  const sign = isPositive ? '+' : '-';
+  
+  return {
+    formatted: `${sign}${Math.abs(diff).toFixed(2)}`,
+    color,
+    arrow,
+  };
+};
+
 const calculatePercentageDiff = (current: number, previous: number | undefined): DiffResult | null => {
   if (previous === undefined) return null;
   
@@ -125,22 +149,22 @@ export const KPIGrid = ({ summary, previousSummary, loading }: Props) => {
         <KPICell 
           label="Avg Duration (s)" 
           value={formatDecimal(summary.averageDuration)}
-          diff={calculateQuantityDiff(summary.averageDuration, previousSummary?.averageDuration)}
+          diff={calculateDecimalDiff(summary.averageDuration, previousSummary?.averageDuration)}
         />
         <KPICell 
           label="Avg Questions per Session" 
           value={formatDecimal(summary.averageQuestionsPerSession)}
-          diff={calculateQuantityDiff(summary.averageQuestionsPerSession, previousSummary?.averageQuestionsPerSession)}
+          diff={calculateDecimalDiff(summary.averageQuestionsPerSession, previousSummary?.averageQuestionsPerSession)}
         />
         <KPICell 
           label="Avg IDK per Session" 
           value={formatDecimal(summary.averageIdkPerSession)}
-          diff={calculateQuantityDiff(summary.averageIdkPerSession, previousSummary?.averageIdkPerSession)}
+          diff={calculateDecimalDiff(summary.averageIdkPerSession, previousSummary?.averageIdkPerSession)}
         />
         <KPICell 
           label="Avg Total Tokens" 
           value={formatDecimal(summary.averageTotalTokens)}
-          diff={calculateQuantityDiff(summary.averageTotalTokens, previousSummary?.averageTotalTokens)}
+          diff={calculateDecimalDiff(summary.averageTotalTokens, previousSummary?.averageTotalTokens)}
         />
       </div>
 
