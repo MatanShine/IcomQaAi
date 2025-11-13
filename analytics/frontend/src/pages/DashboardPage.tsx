@@ -4,7 +4,7 @@ import { useRecentSessions, useSummaryMetrics, usePreviousPeriodMetrics } from '
 import { TimeRangeKey, useTimeRange } from '../hooks/useTimeRange';
 
 export const DashboardPage = () => {
-  const { timeRange, setTimeRange, filters, previousPeriodFilters, options } = useTimeRange('all');
+  const { timeRange, setTimeRange, filters, previousPeriodFilters, options } = useTimeRange('7d');
 
   const { data: summary, isLoading: isSummaryLoading } = useSummaryMetrics(filters);
   const { data: previousSummary, isLoading: isPreviousLoading } = usePreviousPeriodMetrics(previousPeriodFilters);
