@@ -72,6 +72,8 @@ class RAGChatbot:
     def add_url(self, retrieved: dict, text: str, answerId: int):
         meta = retrieved.get(answerId)
         if meta:
+            if text.strip().lower() == "idk":
+                return text
             return text + "\nURL: " + meta[2] + "\n"
         else:
             self.logger.error("No metadata found for answerId: %d", answerId)
