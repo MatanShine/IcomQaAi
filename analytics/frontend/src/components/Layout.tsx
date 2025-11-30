@@ -7,6 +7,7 @@ const navItems = [
   { to: '/chat-history', label: 'Chat History' },
   { to: '/user-usage', label: 'User Usage' },
   { to: '/monitoring', label: 'Monitoring' },
+  { to: '/comments', label: 'Comments' },
 ];
 
 export const Layout = ({ children }: { children?: ReactNode }) => {

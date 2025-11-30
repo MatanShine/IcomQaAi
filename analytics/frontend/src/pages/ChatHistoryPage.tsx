@@ -1,6 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useAllSessions } from '../hooks/useMetrics';
 import type { RecentSession } from '../hooks/useMetrics';
+import { CommentModal } from '../components/CommentModal';
+import { useCreateComment } from '../hooks/useComments';
+import type { CreateCommentInput } from '../types/comments';
+import { ToastContainer } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 export const ChatHistoryPage = () => {
   const { data: allSessions, isLoading } = useAllSessions({});
@@ -11,6 +16,13 @@ export const ChatHistoryPage = () => {
   const [filterIdk, setFilterIdk] = useState(false);
   const [filterSupportRequest, setFilterSupportRequest] = useState(false);
   const [searchText, setSearchText] = useState('');
+
+  // Comment modal states
+  const [openCommentModal, setOpenCommentModal] = useState(false);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const createCommentMutation = useCreateComment();
+  const { toasts, showToast, removeToast } = useToast();
 
   const countIdkAnswers = (interactions: RecentSession['interactions']) => {
     return interactions.filter((interaction) =>
@@ -41,6 +53,28 @@ export const ChatHistoryPage = () => {
       ...prev,
       [interactionId]: !prev[interactionId],
     }));
+  };
+
+  const handleOpenCommentModal = (questionId: number, sessionId: string) => {
+    setSelectedQuestionId(questionId);
+    setSelectedSessionId(sessionId);
+    setOpenCommentModal(true);
+  };
+
+  const handleCloseCommentModal = () => {
+    setOpenCommentModal(false);
+    setSelectedQuestionId(null);
+    setSelectedSessionId(null);
+  };
+
+  const handleSubmitComment = async (data: CreateCommentInput) => {
+    try {
+      await createCommentMutation.mutateAsync(data);
+      showToast('Comment added successfully', 'success');
+      handleCloseCommentModal();
+    } catch (error) {
+      showToast('Failed to add comment', 'error');
+    }
   };
 
   const filteredSessions = useMemo(() => {
@@ -273,6 +307,15 @@ export const ChatHistoryPage = () => {
                               )}
                             </div>
                           )}
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCommentModal(interaction.id, session.sessionId)}
+                              className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-800 dark:border-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                            >
+                              + Comment
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -283,6 +326,18 @@ export const ChatHistoryPage = () => {
           })}
         </ul>
       </div>
+
+      {openCommentModal && selectedQuestionId !== null && selectedSessionId !== null && (
+        <CommentModal
+          isOpen={openCommentModal}
+          onClose={handleCloseCommentModal}
+          onSubmit={handleSubmitComment}
+          questionId={selectedQuestionId}
+          sessionId={selectedSessionId}
+        />
+      )}
+
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 };

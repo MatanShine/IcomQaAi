@@ -836,3 +836,103 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
   
   return result;
 };
+
+export interface CommentFilters {
+  is_bug_fixed?: boolean;
+  user_name?: string;
+  from?: Date;
+  to?: Date;
+}
+
+export interface Comment {
+  id: number;
+  user_name: string;
+  question_id: number;
+  question_session_id: string;
+  is_answer_in_db: boolean;
+  is_answer_in_context: boolean;
+  date_added: Date;
+  is_bug_fixed: boolean;
+  issue_description: string | null;
+  solution_suggestion: string | null;
+}
+
+export interface CreateCommentInput {
+  user_name: string;
+  question_id: number;
+  question_session_id: string;
+  is_answer_in_db: boolean;
+  is_answer_in_context: boolean;
+  issue_description?: string | null;
+  solution_suggestion?: string | null;
+}
+
+export interface UpdateCommentInput {
+  user_name?: string;
+  is_answer_in_db?: boolean;
+  is_answer_in_context?: boolean;
+  is_bug_fixed?: boolean;
+  issue_description?: string | null;
+  solution_suggestion?: string | null;
+}
+
+const buildCommentWhere = ({ is_bug_fixed, user_name, from, to }: CommentFilters) => ({
+  ...(is_bug_fixed !== undefined ? { is_bug_fixed } : {}),
+  ...(user_name ? { user_name: { contains: user_name, mode: 'insensitive' as const } } : {}),
+  ...(from || to
+    ? {
+        date_added: {
+          ...(from ? { gte: from } : {}),
+          ...(to ? { lte: to } : {}),
+        },
+      }
+    : {}),
+});
+
+export const createComment = async (data: CreateCommentInput): Promise<Comment> => {
+  const comment = await prisma.comments.create({
+    data: {
+      user_name: data.user_name,
+      question_id: data.question_id,
+      question_session_id: data.question_session_id,
+      is_answer_in_db: data.is_answer_in_db,
+      is_answer_in_context: data.is_answer_in_context,
+      issue_description: data.issue_description ?? null,
+      solution_suggestion: data.solution_suggestion ?? null,
+    },
+  });
+  return comment;
+};
+
+export const updateComment = async (id: number, data: UpdateCommentInput): Promise<Comment> => {
+  const comment = await prisma.comments.update({
+    where: { id },
+    data: {
+      ...(data.user_name !== undefined ? { user_name: data.user_name } : {}),
+      ...(data.is_answer_in_db !== undefined ? { is_answer_in_db: data.is_answer_in_db } : {}),
+      ...(data.is_answer_in_context !== undefined ? { is_answer_in_context: data.is_answer_in_context } : {}),
+      ...(data.is_bug_fixed !== undefined ? { is_bug_fixed: data.is_bug_fixed } : {}),
+      ...(data.issue_description !== undefined ? { issue_description: data.issue_description } : {}),
+      ...(data.solution_suggestion !== undefined ? { solution_suggestion: data.solution_suggestion } : {}),
+    },
+  });
+  return comment;
+};
+
+export const getAllComments = async (filters: CommentFilters = {}): Promise<Comment[]> => {
+  const where = buildCommentWhere(filters);
+  const comments = await prisma.comments.findMany({
+    where,
+    orderBy: {
+      date_added: 'desc',
+    },
+  });
+  return comments;
+};
+
+export const getCommentById = async (id: number): Promise<Comment | null> => {
+  const comment = await prisma.comments.findUnique({
+    where: { id },
+  });
+  return comment;
+};

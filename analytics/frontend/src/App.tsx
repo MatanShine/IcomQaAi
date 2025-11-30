@@ -4,6 +4,7 @@ import { UserDetailPage } from './pages/UserDetailPage';
 import { ChatHistoryPage } from './pages/ChatHistoryPage';
 import { UserUsagePage } from './pages/UserUsagePage';
 import { MonitoringPage } from './pages/MonitoringPage';
+import { CommentsPage } from './pages/CommentsPage';
 import { Layout } from './components/Layout';
 
 const App = () => {
@@ -14,6 +15,7 @@ const App = () => {
         <Route path="/chat-history" element={<ChatHistoryPage />} />
         <Route path="/user-usage" element={<UserUsagePage />} />
         <Route path="/monitoring" element={<MonitoringPage />} />
+        <Route path="/comments" element={<CommentsPage />} />
         <Route path="/users/:userId" element={<UserDetailPage />} />
       </Routes>
     </Layout>

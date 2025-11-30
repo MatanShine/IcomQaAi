@@ -30,3 +30,16 @@ model support_requests {
   theme             String?
   date_added        DateTime?
 }
+
+model comments {
+  id                  Int      @id @default(autoincrement())
+  user_name           String
+  question_id         Int
+  question_session_id String
+  is_answer_in_db     Boolean
+  is_answer_in_context Boolean
+  date_added          DateTime @default(now())
+  is_bug_fixed        Boolean  @default(false)
+  issue_description   String?
+  solution_suggestion String?
+}
