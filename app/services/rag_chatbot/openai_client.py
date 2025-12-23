@@ -10,9 +10,11 @@ from .stream_response_seeker import StreamResponseSeeker
 from app.core.config import settings, SYSTEM_INSTRUCTION, MODEL
 from pydantic import BaseModel
 
+
 class IdTextFormat(BaseModel):
     response: str
     responseSourceId: int
+
 
 class OpenAIChatClient:
     """Encapsulates OpenAI chat and streaming interactions."""
@@ -24,7 +26,9 @@ class OpenAIChatClient:
         if api_key:
             self.logger.info("OPENAI_API_KEY loaded successfully.")
         else:
-            self.logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
+            self.logger.warning(
+                "WARNING: OPENAI_API_KEY not found in settings or environment."
+            )
         self._client = OpenAI(api_key=api_key)
 
     def chat(self, prompt: str, *, model: str = MODEL) -> tuple[str, int, int, int]:
@@ -43,7 +47,12 @@ class OpenAIChatClient:
             content = parsed.response or ""
             return content.strip(), parsed.responseSourceId, input_tokens, output_tokens
         except Exception as e:  # pragma: no cover - network errors
-            return f"An error occurred while contacting the language model: {e}", 0, 0, 0
+            return (
+                f"An error occurred while contacting the language model: {e}",
+                0,
+                0,
+                0,
+            )
 
     def stream_chat(self, prompt: str, *, model: str = MODEL):
         """Stream chat completion chunks, yielding tokens and final usage."""

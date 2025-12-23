@@ -40,7 +40,9 @@ class BaseScraper(ABC):
             try:
                 question = self.get_question(url)
                 answer = self.get_answer(url)
-                data.append({"url": url, "question": question or "", "answer": answer or ""})
+                data.append(
+                    {"url": url, "question": question or "", "answer": answer or ""}
+                )
                 self.logger.info("  ✓ Successfully processed")
             except Exception as exc:  # pragma: no cover - network errors
                 self.logger.info(f"  ✗ Error processing {url}: {exc}")

@@ -45,7 +45,7 @@ class PostmanScraper(BaseScraper):
         max_retries = settings.scraper_max_retries
         retry_delay = 2  # seconds
         timeout = settings.scraper_timeout
-        
+
         for attempt in range(max_retries):
             try:
                 with sync_playwright() as p:  # pragma: no cover - requires browser
@@ -53,16 +53,18 @@ class PostmanScraper(BaseScraper):
                     ctx = browser.new_context()
                     page = ctx.new_page()
                     page.set_default_timeout(timeout)
-                    page.set_default_navigation_timeout(timeout)        
+                    page.set_default_navigation_timeout(timeout)
                     try:
                         page.goto(url, wait_until="domcontentloaded", timeout=timeout)
-                        page.wait_for_selector("#doc-wrapper", timeout=timeout//2)
+                        page.wait_for_selector("#doc-wrapper", timeout=timeout // 2)
                     except Exception as nav_error:
-                        self.logger.warning(f"Navigation failed with domcontentloaded, trying load: {nav_error}")
+                        self.logger.warning(
+                            f"Navigation failed with domcontentloaded, trying load: {nav_error}"
+                        )
                         page.goto(url, wait_until="load", timeout=timeout)
-                        page.wait_for_selector("#doc-wrapper", timeout=timeout//2)
-                            
-                    page.wait_for_timeout(3000)                    
+                        page.wait_for_selector("#doc-wrapper", timeout=timeout // 2)
+
+                    page.wait_for_timeout(3000)
                     last_height = 0
                     while True:
                         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
@@ -74,14 +76,19 @@ class PostmanScraper(BaseScraper):
                     html = page.content()
                     browser.close()
             except Exception as e:
-                self.logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                self.logger.warning(
+                    f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}"
+                )
                 if attempt < max_retries - 1:
                     self.logger.info(f"Retrying in {retry_delay} seconds...")
                     import time
+
                     time.sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
                 else:
-                    self.logger.error(f"All {max_retries} attempts failed. Last error: {str(e)}")
+                    self.logger.error(
+                        f"All {max_retries} attempts failed. Last error: {str(e)}"
+                    )
                     raise e
 
         soup = BeautifulSoup(html, "html.parser")
@@ -101,7 +108,11 @@ class PostmanScraper(BaseScraper):
         for tag in soup(["script", "style", "img", "svg"]):
             tag.decompose()
         main = soup.select_one("#doc-wrapper")
-        for sel in ["[data-testid=topbar]", "#config-bar", ".navbarstyles__NavbarContainer-sc-4bjpr8-0"]:
+        for sel in [
+            "[data-testid=topbar]",
+            "#config-bar",
+            ".navbarstyles__NavbarContainer-sc-4bjpr8-0",
+        ]:
             for el in main.select(sel):
                 el.decompose()
         for el in main.select("button, .highlighted-code__expand-button"):
@@ -111,17 +122,17 @@ class PostmanScraper(BaseScraper):
             txt = re.sub(r"<\s+/?", "<", txt)
             pre.replace_with("\n```\n" + txt.strip() + "\n```\n")
         return main
-    
+
     def get_question(self, index: int) -> str:
         return "איך משתמשים ב API של זברה: " + self.sections[index][0]
-    
+
     def get_answer(self, index: int) -> str:
         return self.sections[index][1]
-    
+
     def add_new_data(self, data: list) -> int:
         """
         Run the scraper, collecting data from all URLs and saving to the specified path.
-        
+
         Args:
             data_path (str): Path to the JSON file where data will be saved.
                             Will be created if it doesn't exist.
@@ -135,15 +146,13 @@ class PostmanScraper(BaseScraper):
                 for j in range(len(self.sections)):
                     question = self.get_question(j)
                     answer = self.get_answer(j)
-                    data.append({
-                        'url': url,
-                        'question': question,
-                        'answer': answer
-                    })
+                    data.append({"url": url, "question": question, "answer": answer})
                 self.sections = []
                 self.logger.info(f"  ✓ Successfully processed")
             except Exception as e:
                 self.logger.info(f"  ✗ Error processing {url}: {str(e)}")
-        
-        self.logger.info(f"\nProcessing complete. Added {len(data) - l} new items. Total items: {len(data)}")
+
+        self.logger.info(
+            f"\nProcessing complete. Added {len(data) - l} new items. Total items: {len(data)}"
+        )
         return data

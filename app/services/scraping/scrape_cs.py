@@ -5,6 +5,7 @@ import time
 from .base_scraper import BaseScraper
 import re
 
+
 class ZebraSupportScraper(BaseScraper):
 
     def __init__(self, base_url: str, logger):
@@ -24,7 +25,7 @@ class ZebraSupportScraper(BaseScraper):
             all_urls |= self.__get_all_article_urls_for_category(cat)
         self.logger.info(f"\nTotal unique articles discovered: {len(all_urls)}\n")
         return all_urls
-        
+
     def get_question(self, url: str):
         soup = self.__soup(url)
 
@@ -37,7 +38,7 @@ class ZebraSupportScraper(BaseScraper):
             # Fallback: try the <title>
             q = soup.find("title")
         return q.get_text(strip=True) if q else ""
-        
+
     def get_answer(self, url: str):
         """Fetches a Q&A page and pulls out the question & answer, auto-detecting selectors if needed."""
         soup = self.__soup(url)
@@ -52,7 +53,9 @@ class ZebraSupportScraper(BaseScraper):
         if not ans_blocks:
             # Fallback: try all <p> tags (as last resort)
             ans_blocks = soup.find_all("p")
-        ans = "\n\n".join(p.get_text(strip=True) for p in ans_blocks if p.get_text(strip=True))
+        ans = "\n\n".join(
+            p.get_text(strip=True) for p in ans_blocks if p.get_text(strip=True)
+        )
         if not ans:
             return ""
         return self.__clean_answer(ans)
@@ -85,7 +88,9 @@ class ZebraSupportScraper(BaseScraper):
                 for a in soup.find_all("a", href=True)
                 if self.__is_article_url(a["href"])
             )
-            self.logger.info(f"  [{cat_url.split('/')[-2]}] found {len(links)} on page {page}")
+            self.logger.info(
+                f"  [{cat_url.split('/')[-2]}] found {len(links)} on page {page}"
+            )
             seen |= links
             page += 1
             time.sleep(0.3)
@@ -101,4 +106,3 @@ class ZebraSupportScraper(BaseScraper):
         path = urlparse(href).path
         parts = [p for p in path.split("/") if p]
         return len(parts) == 1
-

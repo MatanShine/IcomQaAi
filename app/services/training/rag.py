@@ -45,7 +45,8 @@ class RAGTrainer:
 
     def _combine_fields(self, passage: dict) -> str:
         return " ".join(
-            part for part in [passage.get("question", ""), passage.get("text", "")]
+            part
+            for part in [passage.get("question", ""), passage.get("text", "")]
             if part
         )
 

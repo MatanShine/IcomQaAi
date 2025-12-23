@@ -1,5 +1,3 @@
-
-
 class StreamResponseSeeker:
     """
     Tiny state machine that reads the raw JSON text stream and prints ONLY
@@ -7,7 +5,9 @@ class StreamResponseSeeker:
     """
 
     def __init__(self):
-        self.state = "LOOKING_FOR_KEY"  # LOOKING_FOR_KEY -> AFTER_COLON -> IN_STRING -> DONE
+        self.state = (
+            "LOOKING_FOR_KEY"  # LOOKING_FOR_KEY -> AFTER_COLON -> IN_STRING -> DONE
+        )
         self.key_buf = ""
         self.after_colon = False
         self.done = False
@@ -54,27 +54,27 @@ class StreamResponseSeeker:
                     # Handle escape sequences
                     if ch == '"':
                         yield '"'  # Escaped quote - yield it, don't end string
-                    elif ch == '\\':
-                        yield '\\'  # Escaped backslash
-                    elif ch == 'n':
-                        yield '\n'  # Newline
-                    elif ch == 't':
-                        yield '\t'  # Tab
-                    elif ch == 'r':
-                        yield '\r'  # Carriage return
+                    elif ch == "\\":
+                        yield "\\"  # Escaped backslash
+                    elif ch == "n":
+                        yield "\n"  # Newline
+                    elif ch == "t":
+                        yield "\t"  # Tab
+                    elif ch == "r":
+                        yield "\r"  # Carriage return
                     else:
-                        yield '\\'  # Unknown escape, yield backslash
-                        yield ch    # and the character
+                        yield "\\"  # Unknown escape, yield backslash
+                        yield ch  # and the character
                     self.escaped = False
                     i += 1
                     continue
-                
-                if ch == '\\':
+
+                if ch == "\\":
                     # Start of escape sequence
                     self.escaped = True
                     i += 1
                     continue
-                
+
                 if ch == '"':
                     # Unescaped quote - end of string
                     self.done = True

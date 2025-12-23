@@ -12,6 +12,7 @@ from app.models.db import CustomerSupportChatbotData
 from app.services.rag_chatbot.openai_client import OpenAI
 from app.core.config import settings, MODEL
 
+
 class BM25Retriever:
     """Loads passages and performs BM25 retrieval."""
 
@@ -32,15 +33,21 @@ class BM25Retriever:
             self.bm25 = BM25Okapi(self.tokenized_passages)
             self.logger.info("BM25 index built for %d passages.", len(self.passages))
         else:
-            self.logger.warning("No passages available for retrieval; BM25 index not created.")
+            self.logger.warning(
+                "No passages available for retrieval; BM25 index not created."
+            )
         api_key = settings.openai_api_key
         if api_key:
             self.logger.info("OPENAI_API_KEY loaded successfully.")
         else:
-            self.logger.warning("WARNING: OPENAI_API_KEY not found in settings or environment.")
+            self.logger.warning(
+                "WARNING: OPENAI_API_KEY not found in settings or environment."
+            )
         self._client = OpenAI(api_key=api_key)
 
-    def retrieve_contexts(self, query: str, history: List[str]) -> dict[int, Tuple[str, str, str]]:
+    def retrieve_contexts(
+        self, query: str, history: List[str]
+    ) -> dict[int, Tuple[str, str, str]]:
         """Tokenize the query, perform BM25 search, and return top_k.
         Returns a dictionary mapping passage index to [question, answer, url]."""
 
@@ -51,15 +58,15 @@ class BM25Retriever:
             self.logger.info("History: %s", history)
             try:
                 another_variation = self._client.responses.create(
-                                model=MODEL,
-                                input=f"""You are a query rewriter. Given the chat history and the latest user turn,
+                    model=MODEL,
+                    input=f"""You are a query rewriter. Given the chat history and the latest user turn,
 rewrite the user turn into a standalone search query that preserves meaning.
 History:
 {history[-4:]}
 User turn: {query}
 Return ONLY the rewritten query.""",
-                                max_output_tokens=200
-                            )
+                    max_output_tokens=200,
+                )
                 self.logger.info("Another variation: %s", another_variation.output_text)
                 variation = another_variation.output_text
             except Exception as e:
@@ -113,7 +120,9 @@ Return ONLY the rewritten query.""",
         for passage in self.passages:
             tokens = passage.get("tokens")
             if not tokens:
-                tokens = self._tokenize_doc_for_bm25(self._combine_passage_fields(passage))
+                tokens = self._tokenize_doc_for_bm25(
+                    self._combine_passage_fields(passage)
+                )
                 passage["tokens"] = tokens
             self.tokenized_passages.append(tokens)
 
@@ -154,12 +163,14 @@ Return ONLY the rewritten query.""",
                 index_path,
             )
         except OSError as exc:
-            self.logger.warning("Failed to persist BM25 data to %s: %s", index_path, exc)
+            self.logger.warning(
+                "Failed to persist BM25 data to %s: %s", index_path, exc
+            )
 
     def _char_ngrams(self, token: str, n: int = 3) -> list[str]:
         if len(token) < n:
             return []
-        return [f"§{token[i:i+n]}" for i in range(len(token)-n+1)]
+        return [f"§{token[i:i+n]}" for i in range(len(token) - n + 1)]
         # '§' prefix keeps them distinct from word tokens
 
     def _tokenize_doc_for_bm25(self, text: str) -> list[str]:
@@ -179,6 +190,7 @@ Return ONLY the rewritten query.""",
 
     def _combine_passage_fields(self, passage: dict) -> str:
         return " ".join(
-            part for part in [passage.get("question", ""), passage.get("text", "")]
+            part
+            for part in [passage.get("question", ""), passage.get("text", "")]
             if part
         )

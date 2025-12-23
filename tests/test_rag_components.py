@@ -98,7 +98,9 @@ def test_openai_chat_client_chat_and_stream(monkeypatch):
             self.chat = _FakeChat()
 
     monkeypatch.setattr(openai_client_module, "OpenAI", _FakeOpenAI)
-    monkeypatch.setattr(openai_client_module.settings, "openai_api_key", "test-key", raising=False)
+    monkeypatch.setattr(
+        openai_client_module.settings, "openai_api_key", "test-key", raising=False
+    )
 
     logger = logging.getLogger("test-openai-client")
     client = OpenAIChatClient(logger)
@@ -109,8 +111,18 @@ def test_openai_chat_client_chat_and_stream(monkeypatch):
     assert completion_tokens == 5
 
     chunks = list(client.stream_chat("prompt"))
-    assert chunks[0] == {"token": "Hello", "prompt_tokens": 0, "completion_tokens": 0, "is_final": False}
-    assert chunks[-1] == {"token": "", "prompt_tokens": 10, "completion_tokens": 5, "is_final": True}
+    assert chunks[0] == {
+        "token": "Hello",
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "is_final": False,
+    }
+    assert chunks[-1] == {
+        "token": "",
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "is_final": True,
+    }
 
 
 @pytest.mark.asyncio
@@ -143,14 +155,30 @@ async def test_rag_chatbot_delegates_to_components(monkeypatch):
 
         def stream_chat(self, prompt):
             events["stream"] = prompt
-            yield {"token": "A", "prompt_tokens": 0, "completion_tokens": 0, "is_final": False}
-            yield {"token": "", "prompt_tokens": 3, "completion_tokens": 4, "is_final": True}
+            yield {
+                "token": "A",
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "is_final": False,
+            }
+            yield {
+                "token": "",
+                "prompt_tokens": 3,
+                "completion_tokens": 4,
+                "is_final": True,
+            }
 
     monkeypatch.setattr(manager, "BM25Retriever", _FakeRetriever)
     monkeypatch.setattr(manager, "PromptBuilder", _FakePromptBuilder)
     monkeypatch.setattr(manager, "OpenAIChatClient", _FakeOpenAIClient)
 
-    bot = RAGChatbot(logging.getLogger("test-rag"), db=object(), index_path="path", max_history_messages=5, top_k=2)
+    bot = RAGChatbot(
+        logging.getLogger("test-rag"),
+        db=object(),
+        index_path="path",
+        max_history_messages=5,
+        top_k=2,
+    )
 
     response = bot.chat("message", ["h1"])
     assert response == ("answer", "ctx", 1, 2)

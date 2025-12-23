@@ -10,6 +10,7 @@ from .openai_client import OpenAIChatClient
 from .prompt_builder import PromptBuilder
 from .retriever import BM25Retriever
 
+
 class RAGChatbot:
     """Retrieval-Augmented Generation chatbot that delegates to helper components."""
 
@@ -35,10 +36,11 @@ class RAGChatbot:
         retrieved = self.retriever.retrieve_contexts(message, history)
         self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
-        answer, answerId, prompt_tokens, completion_tokens = self.openai_client.chat(prompt)
+        answer, answerId, prompt_tokens, completion_tokens = self.openai_client.chat(
+            prompt
+        )
         answer = self.add_url(retrieved, answer, answerId)
         return answer, retrieved, prompt_tokens, completion_tokens
-
 
     async def stream_chat(self, message: str, history: List[str]):
         self.logger.debug("User message: %s", message)
@@ -46,13 +48,24 @@ class RAGChatbot:
         self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
         try:
-            queue: asyncio.Queue[Tuple[str | None, int | None, int | None]] = asyncio.Queue()
+            queue: asyncio.Queue[Tuple[str | None, int | None, int | None]] = (
+                asyncio.Queue()
+            )
+
             def _run_blocking():
                 try:
-                    for token, answerId, prompt_tokens, completion_tokens in self.openai_client.stream_chat(prompt):
-                        queue.put_nowait((token, answerId, prompt_tokens, completion_tokens))
+                    for (
+                        token,
+                        answerId,
+                        prompt_tokens,
+                        completion_tokens,
+                    ) in self.openai_client.stream_chat(prompt):
+                        queue.put_nowait(
+                            (token, answerId, prompt_tokens, completion_tokens)
+                        )
                 finally:
                     queue.put_nowait((None, None, None, None))
+
             thread_task = asyncio.create_task(asyncio.to_thread(_run_blocking))
             while True:
                 token, answerId, prompt_tokens, completion_tokens = await queue.get()

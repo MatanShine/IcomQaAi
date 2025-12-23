@@ -34,7 +34,6 @@ def patch_services(monkeypatch):
     def fake_chat(bot, message, history=None):
         return "stubbed response", "retrieved", 0, 0
 
-
     monkeypatch.setattr("app.services.svc.add_data", fake_add_data)
     monkeypatch.setattr("app.services.svc.rebuild_database", fake_rebuild)
     monkeypatch.setattr("app.services.svc.chat", fake_chat)
@@ -65,7 +64,11 @@ def test_chat():
     assert res.json() == {"response": "stubbed response"}
 
     with SessionLocal() as session:
-        saved = session.query(CustomerSupportChatbotAI).filter_by(session_id=SESSION_ID).one()
+        saved = (
+            session.query(CustomerSupportChatbotAI)
+            .filter_by(session_id=SESSION_ID)
+            .one()
+        )
         assert saved.theme == THEME
         assert saved.user_id == USER_ID
 
@@ -112,6 +115,8 @@ def test_open_support_request_counts_messages():
     assert data["user_id"] == USER_ID
 
     with SessionLocal() as session:
-        saved_request = session.query(SupportRequest).filter_by(session_id=session_id).one()
+        saved_request = (
+            session.query(SupportRequest).filter_by(session_id=session_id).one()
+        )
         assert saved_request.theme == THEME
         assert saved_request.user_id == USER_ID
