@@ -79,3 +79,5 @@ analytics/frontend/dist/
 /data/*.json
 !/data/zebra_support_qa.json
 /data/passages.json 
+
+.langgraph_api/*
