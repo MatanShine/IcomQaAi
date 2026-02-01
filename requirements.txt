@@ -17,8 +17,10 @@ uvicorn
 youtube-transcript-api
 langgraph
 langchain
+langchain-core
 langchain-openai
 langchain-community
 langgraph-prebuilt
 langgraph-sdk
 langgraph-checkpoint-sqlite
+langgraph-cli

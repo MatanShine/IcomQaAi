@@ -33,13 +33,22 @@ def _scrape_all(logger: logging.Logger) -> List[dict]:
             scraped = scraper.scrape()
             for item in scraped:
                 item.setdefault("type", source_type)
+                item.setdefault("categories", [])  # Ensure categories is always a list
             data.extend(scraped)
             logger.info(
                 f"Scraped {len(data) - len_data} items from {scraper.__class__.__name__}"
             )
+        except (ConnectionError, TimeoutError) as e:
+            # Network-related errors - recoverable, continue with other scrapers
+            logger.warning(
+                f"Network error scraping from {scraper.__class__.__name__}: {e}. Continuing with other scrapers..."
+            )
+            continue
         except Exception as e:
+            # Other errors - log with full context but continue
             logger.error(
-                f"Failed to scrape from {scraper.__class__.__name__}: {str(e)}"
+                f"Failed to scrape from {scraper.__class__.__name__}: {e}",
+                exc_info=True
             )
             logger.info(f"Continuing with other scrapers...")
             continue

@@ -25,7 +25,7 @@ SYSTEM_INSTRUCTION = {
         }
     },
 }
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-5-nano"
 
 
 class Settings(BaseSettings):

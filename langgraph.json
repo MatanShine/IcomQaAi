@@ -1,0 +1,9 @@
+{
+  "graphs": {
+    "agent": "app/services/rag_chatbot/graph_factory.py:create_graph"
+  },
+  "dependencies": [
+    "requirements.txt"
+  ],
+  "env": ".env"
+}

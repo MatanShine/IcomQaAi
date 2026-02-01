@@ -60,6 +60,39 @@ class ZebraSupportScraper(BaseScraper):
             return ""
         return self.__clean_answer(ans)
 
+    def get_categories(self, url: str):
+        """Extract categories from breadcrumb navigation if available."""
+        soup = self.__soup(url)
+        
+        # Find the breadcrumb navigation
+        breadcrumb = soup.select_one("nav.breadcrumb")
+        if not breadcrumb:
+            return []
+        
+        categories_set = set()  # Use set to prevent duplicates
+        # Find all links in the breadcrumb
+        links = breadcrumb.select("ul li a")
+        
+        for link in links:
+            href = link.get("href", "")
+            text = link.get_text(strip=True)
+            rel_attr = link.get("rel", [])
+            
+            # Skip "Home", "ZebraCRM", and empty text
+            if not text or text.lower() == "home" or text.lower() == "zebracrm":
+                continue
+            
+            # Check if it's a category link (has /category/ in href or rel="category tag")
+            # rel can be a list in BeautifulSoup, so check if it contains "category"
+            is_category = "/category/" in href or (
+                isinstance(rel_attr, list) and "category" in rel_attr
+            )
+            
+            if is_category:
+                categories_set.add(text)  # Set automatically prevents duplicates
+        
+        return list(categories_set)  # Convert back to list for JSON serialization
+
     def __clean_answer(self, text):
         text = re.sub(r"האם המאמר עזר לך\?\s*YesNo\s*\d+/\d+", "", text)
         text = re.sub(r"YesNo\s*\d+/\d+", "", text)
@@ -106,3 +139,28 @@ class ZebraSupportScraper(BaseScraper):
         path = urlparse(href).path
         parts = [p for p in path.split("/") if p]
         return len(parts) == 1
+
+    def scrape(self):
+        """Override scrape to include categories in the returned data."""
+        urls = self.get_urls()
+        data = []
+        for i, url in enumerate(urls, 1):
+            self.logger.info(f"[{i}/{len(urls)}] Processing: {url}")
+            try:
+                question = self.get_question(url)
+                answer = self.get_answer(url)
+                categories = self.get_categories(url)
+                data.append(
+                    {
+                        "url": url,
+                        "question": question or "",
+                        "answer": answer or "",
+                        "categories": categories,
+                    }
+                )
+                self.logger.info("  ✓ Successfully processed")
+            except Exception as exc:  # pragma: no cover - network errors
+                self.logger.info(f"  ✗ Error processing {url}: {exc}")
+
+        self.logger.info(f"Finished processing {len(data)} items")
+        return data

@@ -34,6 +34,7 @@ class PostmanScraper(BaseScraper):
                 "url": self.base_url,
                 "question": f"איך משתמשים ב API של זברה: {q}",
                 "answer": a,
+                "categories": ["API"],
             }
             for q, a in self.sections
         ]
@@ -146,7 +147,7 @@ class PostmanScraper(BaseScraper):
                 for j in range(len(self.sections)):
                     question = self.get_question(j)
                     answer = self.get_answer(j)
-                    data.append({"url": url, "question": question, "answer": answer})
+                    data.append({"url": url, "question": question, "answer": answer, "categories": ["API"]})
                 self.sections = []
                 self.logger.info(f"  ✓ Successfully processed")
             except Exception as e:
