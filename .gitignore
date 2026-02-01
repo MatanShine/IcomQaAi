@@ -80,4 +80,5 @@ analytics/frontend/dist/
 !/data/zebra_support_qa.json
 /data/passages.json 
 
-.langgraph_api/*
+.langgraph_api/
+*.pckl
