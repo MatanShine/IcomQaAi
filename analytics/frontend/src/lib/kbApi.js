@@ -17,11 +17,11 @@ const getKbBaseUrl = () => {
   // Production: use environment variable or fallback
   // If no environment variable is set, try to construct from window location
   // This handles cases where the frontend and API are on the same host but different ports
+  // Note: Port 8080 serves HTTP only, so we use 'http:' regardless of the current page protocol
   if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol;
     const hostname = window.location.hostname;
-    // Use port 8080 for the API (as configured in docker-compose)
-    return `${protocol}//${hostname}:8080/api/v1`;
+    // Use HTTP for port 8080 (as configured in docker-compose, backend serves HTTP only)
+    return `http://${hostname}:8080/api/v1`;
   }
 
   // Final fallback (should not be reached in browser context)
