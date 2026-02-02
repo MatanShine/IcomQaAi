@@ -55,7 +55,7 @@ Start the API and a PostgreSQL database with Docker Compose:
 docker compose up --build
 ```
 
-The API will be available at <http://localhost:8000>.
+The API will be available at <http://localhost:8080>.
 
 The PostgreSQL database is exposed on port `5433` with the default database
 name `icomqaai`.

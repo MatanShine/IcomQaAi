@@ -21,14 +21,22 @@ export default defineConfig({
         },
       },
       '/kb-api': {
+        // Try Docker service name first, fallback to localhost for local development
         target: process.env.VITE_KB_BACKEND_URL || 'http://app:8000',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/kb-api/, ''),
-        // Fallback to localhost if Docker hostname doesn't work
+        // Handle proxy errors gracefully
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, res) => {
-            console.log('KB API proxy error, trying localhost fallback');
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log(`[KB API Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+          });
+          proxy.on('error', (err, req, res) => {
+            console.error('[KB API Proxy] Error:', err.message);
+            // If Docker service name doesn't work, try localhost
+            if (err.code === 'ENOTFOUND' && err.hostname === 'app') {
+              console.log('[KB API Proxy] Docker service not found, this might be local development');
+            }
           });
         },
       },

@@ -26,7 +26,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/icomqaai
     ports:
-      - "8000:8000"
+      - "8080:8000"
     volumes:
       - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level debug
