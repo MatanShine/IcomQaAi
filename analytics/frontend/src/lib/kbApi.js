@@ -14,8 +14,17 @@ const getKbBaseUrl = () => {
     return '/kb-api/api/v1';
   }
 
-  // Production: use environment variable or fallback to localhost
-  // In production, you should set VITE_KB_API_BASE_URL to the actual API URL
+  // Production: use environment variable or fallback
+  // If no environment variable is set, try to construct from window location
+  // This handles cases where the frontend and API are on the same host but different ports
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    // Use port 8080 for the API (as configured in docker-compose)
+    return `${protocol}//${hostname}:8080/api/v1`;
+  }
+
+  // Final fallback (should not be reached in browser context)
   return 'http://localhost:8080/api/v1';
 };
 
