@@ -200,6 +200,7 @@ def update_knowledge_base_item(
     item.answer = answer
     item.url = url
     item.categories = categories or None
+    item.date_added = datetime.now()
     db.commit()
     db.refresh(item)
     _refresh_rag_components(db)

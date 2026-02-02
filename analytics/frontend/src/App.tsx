@@ -6,6 +6,7 @@ import { UserUsagePage } from './pages/UserUsagePage';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { CommentsPage } from './pages/CommentsPage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
+import { TestAgentPage } from './pages/TestAgentPage';
 import { Layout } from './components/Layout';
 
 const App = () => {
@@ -18,6 +19,7 @@ const App = () => {
         <Route path="/monitoring" element={<MonitoringPage />} />
         <Route path="/comments" element={<CommentsPage />} />
         <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+        <Route path="/test-agent" element={<TestAgentPage />} />
         <Route path="/users/:userId" element={<UserDetailPage />} />
       </Routes>
     </Layout>

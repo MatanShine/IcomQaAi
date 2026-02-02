@@ -198,16 +198,9 @@ def think_node(state: Dict[str, Any]) -> Dict[str, Any]:
     question_titles = _get_all_question_titles(logger)
     question_titles_text = ""
     if question_titles:
-        limited_titles = question_titles[:50]
-        question_titles_list = "\n".join([f"{i+1}. {title}" for i, title in enumerate(limited_titles)])
-        if len(question_titles) > 50:
-            question_titles_text = f"""
-Available Questions in Knowledge Base (showing top 50 of {len(question_titles)}):
-{question_titles_list}
-"""
-        else:
-            question_titles_text = f"""
-Available Questions in Knowledge Base:
+        question_titles_list = "\n".join([f"{i+1}. {title}" for i, title in enumerate(question_titles)])
+        question_titles_text = f"""
+Available Questions in Knowledge Base ({len(question_titles)} total):
 {question_titles_list}
 """
     

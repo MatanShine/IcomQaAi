@@ -9,6 +9,7 @@ const navItems = [
   { to: '/monitoring', label: 'Monitoring' },
   { to: '/comments', label: 'Comments' },
   { to: '/knowledge-base', label: 'Knowledge Base' },
+  { to: '/test-agent', label: 'Test Agent' },
 ];
 
 export const Layout = ({ children }: { children?: ReactNode }) => {
