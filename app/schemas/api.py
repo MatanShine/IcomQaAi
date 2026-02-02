@@ -32,3 +32,24 @@ class SupportRequestResponse(BaseModel):
     session_id: str
     theme: str | None = None
     user_id: str | None = None
+
+
+class KnowledgeBaseItem(BaseModel):
+    id: int
+    url: str
+    type: str
+    question: str | None = None
+    answer: str | None = None
+    categories: list[str] | None = None
+    date_added: str
+
+
+class KnowledgeBaseListResponse(BaseModel):
+    items: list[KnowledgeBaseItem]
+
+
+class KnowledgeBaseUpsert(BaseModel):
+    question: str
+    answer: str
+    url: str | None = None
+    categories: list[str] | None = None

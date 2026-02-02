@@ -13,7 +13,13 @@ export default defineConfig({
         target: 'http://analytics-backend:4001',
         changeOrigin: true,
         secure: false,
-      }
+      },
+      '/kb-api': {
+        target: 'http://app:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/kb-api/, ''),
+      },
     }
   }
 });

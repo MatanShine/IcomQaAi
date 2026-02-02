@@ -8,6 +8,7 @@ const navItems = [
   { to: '/user-usage', label: 'User Usage' },
   { to: '/monitoring', label: 'Monitoring' },
   { to: '/comments', label: 'Comments' },
+  { to: '/knowledge-base', label: 'Knowledge Base' },
 ];
 
 export const Layout = ({ children }: { children?: ReactNode }) => {

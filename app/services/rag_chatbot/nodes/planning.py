@@ -36,6 +36,16 @@ def invalidate_question_titles_cache() -> None:
     logger.info("Question titles cache invalidated")
 
 
+def invalidate_bm25_retriever() -> None:
+    """Invalidate the shared BM25 retriever instance.
+    
+    Call this when the BM25 index or database content changes.
+    """
+    global _shared_retriever
+    _shared_retriever = None
+    logger.info("Shared BM25 retriever invalidated")
+
+
 def _get_all_question_titles(logger: logging.Logger, db_session=None) -> List[str]:
     """Get all question titles from the database, using a module-level cache.
     
