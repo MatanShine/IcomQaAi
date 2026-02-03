@@ -943,7 +943,7 @@ export interface KnowledgeBaseItem {
   type: string;
   question: string | null;
   answer: string | null;
-  categories: string[] | null;
+  categories: string[] | null; // Prisma returns Json type, we'll convert it
   date_added: Date;
 }
 
@@ -967,10 +967,10 @@ export const getAllKnowledgeBaseItems = async (): Promise<KnowledgeBaseItem[]> =
       id: 'desc',
     },
   });
-  // Handle null categories from database - convert to empty array for Prisma compatibility
+  // Convert array to nullable array for API compatibility
   return items.map(item => ({
     ...item,
-    categories: Array.isArray(item.categories) ? item.categories : [],
+    categories: Array.isArray(item.categories) && item.categories.length > 0 ? item.categories : null,
   }));
 };
 
@@ -991,14 +991,14 @@ export const createKnowledgeBaseItem = async (data: CreateKnowledgeBaseInput): P
       answer,
       url,
       type: 'manual',
-      categories: categories, // Use empty array instead of null for Prisma String[]
+      categories: categories, // Store as array (empty array for no categories)
     },
   });
 
-  // Return with normalized categories (handle any null values)
+  // Return with normalized categories (null for empty array)
   return {
     ...item,
-    categories: Array.isArray(item.categories) ? item.categories : [],
+    categories: Array.isArray(item.categories) && item.categories.length > 0 ? item.categories : null,
   };
 };
 
@@ -1017,7 +1017,7 @@ export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeB
     question: string;
     answer: string;
     url: string;
-    categories: string[];
+    categories: string[]; // Array type
     date_added: Date;
   } = {
     date_added: new Date(),
@@ -1044,10 +1044,10 @@ export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeB
     data: updateData,
   });
 
-  // Return with normalized categories (handle any null values)
+  // Return with normalized categories (null for empty array)
   return {
     ...item,
-    categories: Array.isArray(item.categories) ? item.categories : [],
+    categories: Array.isArray(item.categories) && item.categories.length > 0 ? item.categories : null,
   };
 };
 
@@ -1056,9 +1056,9 @@ export const getKnowledgeBaseItemById = async (id: number): Promise<KnowledgeBas
     where: { id },
   });
   if (!item) return null;
-  // Handle null categories from database - convert to empty array for Prisma compatibility
+  // Convert array to nullable array for API compatibility
   return {
     ...item,
-    categories: Array.isArray(item.categories) ? item.categories : [],
+    categories: Array.isArray(item.categories) && item.categories.length > 0 ? item.categories : null,
   };
 };
