@@ -50,6 +50,6 @@ model customer_support_chatbot_data {
   type       String
   question   String?
   answer     String?
-  categories String[]  @default([])
+  categories String?   @db.Text
   date_added DateTime  @default(now())
 }
