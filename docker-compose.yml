@@ -56,7 +56,7 @@ services:
         condition: service_started
     environment:
       VITE_ANALYTICS_API_BASE_URL: ${VITE_ANALYTICS_API_BASE_URL:-http://172.16.1.180:4001/api}
-      VITE_KB_API_BASE_URL: ${VITE_KB_API_BASE_URL:-https://ai.zebracrm.com:8080/api/v1}
+      VITE_KB_API_BASE_URL: ${VITE_KB_API_BASE_URL:-/api/v1}
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "4173:4173"
