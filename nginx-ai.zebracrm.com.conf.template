@@ -1,0 +1,84 @@
+# Nginx configuration template for ai.zebracrm.com
+# Replace HOSTGW with the actual host gateway IP (run: docker exec -it icrm-prod sh -lc "ip route | awk '/default/ {print \$3}'")
+#
+# To use this file:
+# 1. Replace HOSTGW with your actual gateway IP
+# 2. Copy to container: docker cp nginx-ai.zebracrm.com.conf.template icrm-prod:/etc/nginx/sites-enabled/ai.zebracrm.com.conf
+# 3. Test: docker exec -it icrm-prod sh -lc "nginx -t"
+# 4. Reload: docker exec -it icrm-prod sh -lc "nginx -s reload"
+
+server {
+    listen 80;
+    server_name ai.zebracrm.com;
+
+    # API -> FastAPI (host port 8080)
+    location /api/ {
+        proxy_pass http://HOSTGW:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        
+        # CORS headers (if needed)
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+        
+        # Handle preflight requests
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization';
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+    }
+
+    # Frontend -> Vite preview (host port 84)
+    location / {
+        proxy_pass http://HOSTGW:84;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        
+        # WebSocket support (if needed for Vite HMR)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# If you need HTTPS (for Cloudflare "Full" mode), add this server block:
+# server {
+#     listen 443 ssl;
+#     server_name ai.zebracrm.com;
+#     
+#     # SSL certificates (adjust paths as needed)
+#     # ssl_certificate /path/to/cert.pem;
+#     # ssl_certificate_key /path/to/key.pem;
+#     
+#     # Same location blocks as above
+#     location /api/ {
+#         proxy_pass http://HOSTGW:8080;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Host $host;
+#     }
+#     
+#     location / {
+#         proxy_pass http://HOSTGW:84;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Host $host;
+#     }
+# }
+
