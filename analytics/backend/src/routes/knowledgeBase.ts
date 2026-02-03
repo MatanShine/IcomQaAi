@@ -33,7 +33,7 @@ knowledgeBaseRouter.get('/', async (req, res, next) => {
       type: item.type,
       question: item.question,
       answer: item.answer,
-      categories: item.categories,
+      categories: item.categories || null, // Convert empty array to null for API compatibility
       date_added: item.date_added.toISOString(),
     }));
     res.json({ items: formattedItems });
@@ -53,7 +53,7 @@ knowledgeBaseRouter.post('/', async (req, res, next) => {
       type: item.type,
       question: item.question,
       answer: item.answer,
-      categories: item.categories,
+      categories: (item.categories && item.categories.length > 0) ? item.categories : null, // Convert empty array to null for API compatibility
       date_added: item.date_added.toISOString(),
     });
   } catch (error) {
@@ -76,7 +76,7 @@ knowledgeBaseRouter.put('/:id', async (req, res, next) => {
       type: item.type,
       question: item.question,
       answer: item.answer,
-      categories: item.categories,
+      categories: (item.categories && item.categories.length > 0) ? item.categories : null, // Convert empty array to null for API compatibility
       date_added: item.date_added.toISOString(),
     });
   } catch (error) {
@@ -101,7 +101,7 @@ knowledgeBaseRouter.get('/:id', async (req, res, next) => {
       type: item.type,
       question: item.question,
       answer: item.answer,
-      categories: item.categories,
+      categories: (item.categories && item.categories.length > 0) ? item.categories : null, // Convert empty array to null for API compatibility
       date_added: item.date_added.toISOString(),
     });
   } catch (error) {

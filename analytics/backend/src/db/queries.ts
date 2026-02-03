@@ -987,32 +987,73 @@ export const createKnowledgeBaseItem = async (data: CreateKnowledgeBaseInput): P
       answer,
       url,
       type: 'manual',
-      categories: categories.length > 0 ? categories : null,
+      categories: categories, // Use empty array instead of null for Prisma String[]
     },
   });
   return item;
 };
 
 export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeBaseInput): Promise<KnowledgeBaseItem> => {
-  const question = (data.question || '').trim();
-  const answer = (data.answer || '').trim();
-  
-  if (!question || !answer) {
-    throw new Error('question and answer must not be empty');
+  // First, get the existing item to preserve values for fields not being updated
+  const existing = await prisma.customer_support_chatbot_data.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    throw new Error('Knowledge base item not found');
   }
 
-  const url = (data.url || '').trim() || 'manual-entry';
-  const categories = (data.categories || []).filter(c => c && c.trim()).map(c => c.trim());
+  // Prepare update data - only include fields that are provided
+  const updateData: {
+    question?: string;
+    answer?: string;
+    url?: string;
+    categories?: string[] | null;
+    date_added: Date;
+  } = {
+    date_added: new Date(),
+  };
+
+  // Handle question - use provided value or keep existing
+  if (data.question !== undefined) {
+    const question = data.question.trim();
+    if (!question) {
+      throw new Error('question must not be empty');
+    }
+    updateData.question = question;
+  } else {
+    updateData.question = existing.question;
+  }
+
+  // Handle answer - use provided value or keep existing
+  if (data.answer !== undefined) {
+    const answer = data.answer.trim();
+    if (!answer) {
+      throw new Error('answer must not be empty');
+    }
+    updateData.answer = answer;
+  } else {
+    updateData.answer = existing.answer;
+  }
+
+  // Handle url - use provided value or keep existing
+  if (data.url !== undefined) {
+    updateData.url = (data.url || '').trim() || 'manual-entry';
+  } else {
+    updateData.url = existing.url;
+  }
+
+  // Handle categories - use provided value or keep existing
+  if (data.categories !== undefined) {
+    const categories = (data.categories || []).filter(c => c && c.trim()).map(c => c.trim());
+    updateData.categories = categories; // Use empty array instead of null for Prisma String[]
+  } else {
+    updateData.categories = existing.categories || []; // Ensure it's never null
+  }
 
   const item = await prisma.customer_support_chatbot_data.update({
     where: { id },
-    data: {
-      question,
-      answer,
-      url,
-      categories: categories.length > 0 ? categories : null,
-      date_added: new Date(),
-    },
+    data: updateData,
   });
   return item;
 };
