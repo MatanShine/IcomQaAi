@@ -936,3 +936,90 @@ export const getCommentById = async (id: number): Promise<Comment | null> => {
   });
   return comment;
 };
+
+export interface KnowledgeBaseItem {
+  id: number;
+  url: string;
+  type: string;
+  question: string | null;
+  answer: string | null;
+  categories: string[] | null;
+  date_added: Date;
+}
+
+export interface CreateKnowledgeBaseInput {
+  question: string;
+  answer: string;
+  url?: string | null;
+  categories?: string[] | null;
+}
+
+export interface UpdateKnowledgeBaseInput {
+  question?: string;
+  answer?: string;
+  url?: string | null;
+  categories?: string[] | null;
+}
+
+export const getAllKnowledgeBaseItems = async (): Promise<KnowledgeBaseItem[]> => {
+  const items = await prisma.customer_support_chatbot_data.findMany({
+    orderBy: {
+      id: 'desc',
+    },
+  });
+  return items;
+};
+
+export const createKnowledgeBaseItem = async (data: CreateKnowledgeBaseInput): Promise<KnowledgeBaseItem> => {
+  const question = (data.question || '').trim();
+  const answer = (data.answer || '').trim();
+  
+  if (!question || !answer) {
+    throw new Error('question and answer must not be empty');
+  }
+
+  const url = (data.url || '').trim() || 'manual-entry';
+  const categories = (data.categories || []).filter(c => c && c.trim()).map(c => c.trim());
+
+  const item = await prisma.customer_support_chatbot_data.create({
+    data: {
+      question,
+      answer,
+      url,
+      type: 'manual',
+      categories: categories.length > 0 ? categories : null,
+    },
+  });
+  return item;
+};
+
+export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeBaseInput): Promise<KnowledgeBaseItem> => {
+  const question = (data.question || '').trim();
+  const answer = (data.answer || '').trim();
+  
+  if (!question || !answer) {
+    throw new Error('question and answer must not be empty');
+  }
+
+  const url = (data.url || '').trim() || 'manual-entry';
+  const categories = (data.categories || []).filter(c => c && c.trim()).map(c => c.trim());
+
+  const item = await prisma.customer_support_chatbot_data.update({
+    where: { id },
+    data: {
+      question,
+      answer,
+      url,
+      categories: categories.length > 0 ? categories : null,
+      date_added: new Date(),
+    },
+  });
+  return item;
+};
+
+export const getKnowledgeBaseItemById = async (id: number): Promise<KnowledgeBaseItem | null> => {
+  const item = await prisma.customer_support_chatbot_data.findUnique({
+    where: { id },
+  });
+  return item;
+};

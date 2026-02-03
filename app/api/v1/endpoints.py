@@ -5,16 +5,13 @@ from sqlalchemy.orm import Session
 import json
 from datetime import datetime
 from app.models.db import init_db, SessionLocal
-from app.models.db import CustomerSupportChatbotAI, SupportRequest, CustomerSupportChatbotData
+from app.models.db import CustomerSupportChatbotAI, SupportRequest
 from app.schemas.api import (
     ChatRequest,
     ChatResponse,
     OperationResponse,
     SupportRequestCreate,
     SupportRequestResponse,
-    KnowledgeBaseItem,
-    KnowledgeBaseListResponse,
-    KnowledgeBaseUpsert,
 )
 from app.services import svc
 from app.services.rag_chatbot import RAGChatbot
@@ -55,28 +52,6 @@ def _extract_session_metadata(session_id: str) -> tuple[str | None, str | None]:
 
 def normalize_keys(d: dict) -> dict:
     return {str(k): v for k, v in d.items()}
-
-
-def _serialize_kb_item(item: CustomerSupportChatbotData) -> KnowledgeBaseItem:
-    date_added = item.date_added.isoformat() if item.date_added else ""
-    return KnowledgeBaseItem(
-        id=item.id,
-        url=item.url,
-        type=item.type,
-        question=item.question,
-        answer=item.answer,
-        categories=item.categories,
-        date_added=date_added,
-    )
-
-
-def _refresh_rag_components(db: Session) -> None:
-    """Refresh BM25 corpus and invalidate caches after KB updates."""
-    RAGTrainer(db, logger).run()
-    rag_bot.reinitialize(db)
-    invalidate_question_titles_cache()
-    invalidate_knowledge_summary_cache()
-    invalidate_bm25_retriever()
 
 
 class SingletonBot:
@@ -130,81 +105,6 @@ async def add_new_data(background: BackgroundTasks):
     background.add_task(_job)
     # Immediate acknowledgment; background task will handle the real work
     return OperationResponse(amount_added=0)
-
-
-@router.get("/knowledge-base", response_model=KnowledgeBaseListResponse)
-def list_knowledge_base(db: Session = Depends(get_db)):
-    items = (
-        db.query(CustomerSupportChatbotData)
-        .order_by(CustomerSupportChatbotData.id.desc())
-        .all()
-    )
-    return KnowledgeBaseListResponse(items=[_serialize_kb_item(item) for item in items])
-
-
-@router.post("/knowledge-base", response_model=KnowledgeBaseItem)
-def create_knowledge_base_item(
-    payload: KnowledgeBaseUpsert, db: Session = Depends(get_db)
-):
-    question = (payload.question or "").strip()
-    answer = (payload.answer or "").strip()
-    if not question or not answer:
-        raise HTTPException(
-            status_code=400, detail="question and answer must not be empty"
-        )
-
-    url = (payload.url or "").strip()
-    if not url:
-        url = "manual-entry"
-
-    categories = [c.strip() for c in (payload.categories or []) if c and c.strip()]
-    item = CustomerSupportChatbotData(
-        question=question,
-        answer=answer,
-        url=url,
-        type="manual",
-        categories=categories or None,
-    )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    _refresh_rag_components(db)
-    return _serialize_kb_item(item)
-
-
-@router.put("/knowledge-base/{item_id}", response_model=KnowledgeBaseItem)
-def update_knowledge_base_item(
-    item_id: int, payload: KnowledgeBaseUpsert, db: Session = Depends(get_db)
-):
-    item = (
-        db.query(CustomerSupportChatbotData)
-        .filter(CustomerSupportChatbotData.id == item_id)
-        .first()
-    )
-    if not item:
-        raise HTTPException(status_code=404, detail="Knowledge base item not found")
-
-    question = (payload.question or "").strip()
-    answer = (payload.answer or "").strip()
-    if not question or not answer:
-        raise HTTPException(
-            status_code=400, detail="question and answer must not be empty"
-        )
-
-    url = (payload.url or "").strip()
-    if not url:
-        url = "manual-entry"
-
-    categories = [c.strip() for c in (payload.categories or []) if c and c.strip()]
-    item.question = question
-    item.answer = answer
-    item.url = url
-    item.categories = categories or None
-    item.date_added = datetime.now()
-    db.commit()
-    db.refresh(item)
-    _refresh_rag_components(db)
-    return _serialize_kb_item(item)
 
 
 def _build_history(db: Session, session_id: str) -> list[str]:

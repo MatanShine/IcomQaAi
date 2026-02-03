@@ -6,6 +6,7 @@ import 'dotenv/config';
 import helmet from 'helmet';
 import { metricsRouter } from './routes/metrics';
 import { commentsRouter } from './routes/comments';
+import { knowledgeBaseRouter } from './routes/knowledgeBase';
 import { errorHandler } from './middleware/errorHandler';
 import { validateEnv } from './env';
 
@@ -32,6 +33,7 @@ validateEnv();
 
 app.use('/api/metrics', metricsRouter);
 app.use('/api/comments', commentsRouter);
+app.use('/api/knowledge-base', knowledgeBaseRouter);
 
 app.use(errorHandler);
 

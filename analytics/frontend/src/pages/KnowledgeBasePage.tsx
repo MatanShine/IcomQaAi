@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { kbApi } from '../lib/kbApi';
+import { api } from '../lib/api';
 
 type KnowledgeBaseItem = {
   id: number;
@@ -55,7 +55,7 @@ export const KnowledgeBasePage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await kbApi.get('/knowledge-base');
+      const response = await api.get('/knowledge-base');
       setItems(response.data.items ?? []);
     } catch (err) {
       setError('טעינת מאגר הידע נכשלה.');
@@ -139,7 +139,7 @@ export const KnowledgeBasePage = () => {
         url: newDraft.url.trim() || null,
         categories: toCategoryList(newDraft.categories),
       };
-      const response = await kbApi.post('/knowledge-base', payload);
+      const response = await api.post('/knowledge-base', payload);
       setItems((prev) => [response.data, ...prev]);
       setNewDraft(emptyDraft);
       setIsAdding(false);
@@ -165,7 +165,7 @@ export const KnowledgeBasePage = () => {
         url: editDraft.url.trim() || null,
         categories: toCategoryList(editDraft.categories),
       };
-      const response = await kbApi.put(`/knowledge-base/${editingId}`, payload);
+      const response = await api.put(`/knowledge-base/${editingId}`, payload);
       setItems((prev) =>
         prev.map((item) => (item.id === editingId ? response.data : item))
       );
