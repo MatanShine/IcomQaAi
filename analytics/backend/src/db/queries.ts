@@ -24,8 +24,8 @@ const buildChatbotWhere = ({ from, to, theme, userId }: SummaryFilters) => ({
   ...(userId ? { user_id: userId } : {}),
   ...(from || to
     ? {
-        date_asked: buildDateFilter(from, to),
-      }
+      date_asked: buildDateFilter(from, to),
+    }
     : {}),
 });
 
@@ -34,8 +34,8 @@ const buildSupportRequestWhere = ({ from, to, theme, userId }: SummaryFilters) =
   ...(userId ? { user_id: userId } : {}),
   ...(from || to
     ? {
-        date_added: buildDateFilter(from, to),
-      }
+      date_added: buildDateFilter(from, to),
+    }
     : {}),
 });
 
@@ -230,7 +230,7 @@ export const fetchRecentSessions = async (filters: SummaryFilters) => {
       question: record.question,
       answer: record.answer,
     });
-    
+
     // Update lastQuestionTime if this interaction is more recent
     if (record.date_asked && (!session.lastQuestionTime || record.date_asked > session.lastQuestionTime)) {
       session.lastQuestionTime = record.date_asked;
@@ -333,7 +333,7 @@ export const fetchAllSessions = async (filters: SummaryFilters) => {
       answer: record.answer,
       context: record.context ?? null,
     });
-    
+
     // Update lastQuestionTime if this interaction is more recent
     if (record.date_asked && (!session.lastQuestionTime || record.date_asked > session.lastQuestionTime)) {
       session.lastQuestionTime = record.date_asked;
@@ -375,7 +375,7 @@ export const fetchThemeUsageStats = async (filters: SummaryFilters) => {
 
   // Get all unique themes
   const themes = themesWithQuestions
-    .map((t: {theme: string}) => t.theme)
+    .map((t: { theme: string }) => t.theme)
     .filter((theme: string | null): theme is string => theme !== null);
 
   if (themes.length === 0) {
@@ -519,56 +519,56 @@ export interface HourlyMetric {
 // Helper function to generate all hours in a time range
 const generateHourRanges = (from?: Date, to?: Date): Date[] => {
   const hours: Date[] = [];
-  
+
   if (!from || !to) {
     return hours;
   }
-  
+
   // Round down to the start of the hour
   const start = new Date(from);
   start.setMinutes(0, 0, 0);
   start.setSeconds(0, 0);
   start.setMilliseconds(0);
-  
+
   // Round up to the start of the next hour
   const end = new Date(to);
   end.setMinutes(0, 0, 0);
   end.setSeconds(0, 0);
   end.setMilliseconds(0);
   end.setHours(end.getHours() + 1);
-  
+
   const current = new Date(start);
   while (current < end) {
     hours.push(new Date(current));
     current.setHours(current.getHours() + 1);
   }
-  
+
   return hours;
 };
 
 // Helper function to generate all days in a time range
 const generateDayRanges = (from?: Date, to?: Date): Date[] => {
   const days: Date[] = [];
-  
+
   if (!from || !to) {
     return days;
   }
-  
+
   // Round down to the start of the day
   const start = new Date(from);
   start.setHours(0, 0, 0, 0);
-  
+
   // Round up to the start of the next day
   const end = new Date(to);
   end.setHours(0, 0, 0, 0);
   end.setDate(end.getDate() + 1);
-  
+
   const current = new Date(start);
   while (current < end) {
     days.push(new Date(current));
     current.setDate(current.getDate() + 1);
   }
-  
+
   return days;
 };
 
@@ -592,11 +592,11 @@ const formatDayForGrouping = (date: Date): string => {
 export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<HourlyMetric[]> => {
   // Check if we should aggregate by day (for 30D and All)
   const aggregateByDay = filters.timeRange === '30d' || filters.timeRange === 'all';
-  
+
   // First, determine the time range
   let from: Date;
   let to: Date = filters.to || new Date();
-  
+
   if (filters.from) {
     from = filters.from;
   } else {
@@ -609,33 +609,33 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       orderBy: { date_added: 'asc' },
       select: { date_added: true },
     });
-    
+
     const dates = [earliestQuestion?.date_asked, earliestSupport?.date_added].filter(
       (d): d is Date => d !== null
     );
-    
+
     if (dates.length === 0) {
       return [];
     }
-    
+
     from = new Date(Math.min(...dates.map(d => d.getTime())));
   }
-  
+
   let timeRanges: Date[];
   let toQuery: Date;
-  
+
   if (aggregateByDay) {
     // Round down to the start of the day
     from = new Date(from);
     from.setHours(0, 0, 0, 0);
-    
+
     to = new Date(to);
     to.setHours(0, 0, 0, 0);
-    
+
     // For querying, include data up to the end of the last day
     toQuery = new Date(to);
     toQuery.setHours(23, 59, 59, 999);
-    
+
     // Generate all days in the range
     const toForRange = new Date(to);
     toForRange.setDate(toForRange.getDate() + 1);
@@ -646,31 +646,31 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
     from.setMinutes(0, 0, 0);
     from.setSeconds(0, 0);
     from.setMilliseconds(0);
-    
+
     // Round down to the start of the hour for to
     const toStartOfHour = new Date(to);
     toStartOfHour.setMinutes(0, 0, 0);
     toStartOfHour.setSeconds(0, 0);
     toStartOfHour.setMilliseconds(0);
-    
+
     // For querying, include data up to the end of the last hour
     toQuery = new Date(toStartOfHour);
     toQuery.setMinutes(59, 59, 999);
-    
+
     // Generate all hours in the range
     const toForRange = new Date(toStartOfHour);
     toForRange.setHours(toForRange.getHours() + 1);
     timeRanges = generateHourRanges(from, toForRange);
   }
-  
+
   if (timeRanges.length === 0) {
     return [];
   }
-  
+
   // Build where clauses
   const chatbotWhere = buildChatbotWhere(filters);
   const supportWhere = buildSupportRequestWhere(filters);
-  
+
   // Get all questions
   const questionsData = await prisma.customer_support_chatbot_ai.findMany({
     where: {
@@ -689,7 +689,7 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       answer: true,
     },
   });
-  
+
   // Get all support requests
   const supportData = await prisma.support_requests.findMany({
     where: {
@@ -703,7 +703,7 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       date_added: true,
     },
   });
-  
+
   // Group data by time period (hour or day)
   const timeMap = new Map<string, {
     questions: number;
@@ -714,10 +714,10 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
     tokensSent: number;
     tokensReceived: number;
   }>();
-  
+
   // Initialize all time periods with zeros
   timeRanges.forEach(timePeriod => {
-    const timeKey = aggregateByDay 
+    const timeKey = aggregateByDay
       ? formatDayForGrouping(timePeriod)
       : formatHourForGrouping(timePeriod);
     timeMap.set(timeKey, {
@@ -730,7 +730,7 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       tokensReceived: 0,
     });
   });
-  
+
   // Process questions
   questionsData.forEach((question: {
     date_asked: Date | null;
@@ -741,21 +741,21 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
     answer: string | null;
   }) => {
     if (!question.date_asked) return;
-    
+
     const questionDate = new Date(question.date_asked);
     if (aggregateByDay) {
       questionDate.setHours(0, 0, 0, 0);
     } else {
       questionDate.setMinutes(0, 0, 0);
     }
-    
-    const timeKey = aggregateByDay 
+
+    const timeKey = aggregateByDay
       ? formatDayForGrouping(questionDate)
       : formatHourForGrouping(questionDate);
-    
+
     const timeData = timeMap.get(timeKey);
     if (!timeData) return;
-    
+
     timeData.questions++;
     if (question.session_id) {
       timeData.sessions.add(question.session_id);
@@ -773,32 +773,32 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       timeData.tokensReceived += question.tokens_received;
     }
   });
-  
+
   // Process support requests
   supportData.forEach((support: { date_added: Date | null }) => {
     if (!support.date_added) return;
-    
+
     const supportDate = new Date(support.date_added);
     if (aggregateByDay) {
       supportDate.setHours(0, 0, 0, 0);
     } else {
       supportDate.setMinutes(0, 0, 0);
     }
-    
-    const timeKey = aggregateByDay 
+
+    const timeKey = aggregateByDay
       ? formatDayForGrouping(supportDate)
       : formatHourForGrouping(supportDate);
-    
+
     const timeData = timeMap.get(timeKey);
     if (!timeData) return;
-    
+
     timeData.supportRequests++;
   });
-  
+
   // Convert to array and calculate metrics
   // For daily aggregation, set hour to start of day (00:00:00)
   const result: HourlyMetric[] = timeRanges.map(timePeriod => {
-    const timeKey = aggregateByDay 
+    const timeKey = aggregateByDay
       ? formatDayForGrouping(timePeriod)
       : formatHourForGrouping(timePeriod);
     const data = timeMap.get(timeKey) || {
@@ -810,16 +810,16 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       tokensSent: 0,
       tokensReceived: 0,
     };
-    
+
     const maxDuration = data.durations.length > 0 ? Math.max(...data.durations) : 0;
     const minDuration = data.durations.length > 0 ? Math.min(...data.durations) : 0;
-    
+
     // For daily aggregation, ensure the hour is set to start of day
     const resultDate = new Date(timePeriod);
     if (aggregateByDay) {
       resultDate.setHours(0, 0, 0, 0);
     }
-    
+
     return {
       hour: resultDate.toISOString(),
       questions: data.questions,
@@ -833,7 +833,7 @@ export const fetchHourlyMetrics = async (filters: SummaryFilters): Promise<Hourl
       tokensTotal: data.tokensSent + data.tokensReceived,
     };
   });
-  
+
   return result;
 };
 
@@ -881,11 +881,11 @@ const buildCommentWhere = ({ is_bug_fixed, user_name, from, to }: CommentFilters
   ...(user_name ? { user_name: { contains: user_name, mode: 'insensitive' as const } } : {}),
   ...(from || to
     ? {
-        date_added: {
-          ...(from ? { gte: from } : {}),
-          ...(to ? { lte: to } : {}),
-        },
-      }
+      date_added: {
+        ...(from ? { gte: from } : {}),
+        ...(to ? { lte: to } : {}),
+      },
+    }
     : {}),
 });
 
@@ -967,13 +967,17 @@ export const getAllKnowledgeBaseItems = async (): Promise<KnowledgeBaseItem[]> =
       id: 'desc',
     },
   });
-  return items;
+  // Handle null categories from database - convert to empty array for Prisma compatibility
+  return items.map(item => ({
+    ...item,
+    categories: Array.isArray(item.categories) ? item.categories : [],
+  }));
 };
 
 export const createKnowledgeBaseItem = async (data: CreateKnowledgeBaseInput): Promise<KnowledgeBaseItem> => {
   const question = (data.question || '').trim();
   const answer = (data.answer || '').trim();
-  
+
   if (!question || !answer) {
     throw new Error('question and answer must not be empty');
   }
@@ -990,7 +994,12 @@ export const createKnowledgeBaseItem = async (data: CreateKnowledgeBaseInput): P
       categories: categories, // Use empty array instead of null for Prisma String[]
     },
   });
-  return item;
+
+  // Return with normalized categories (handle any null values)
+  return {
+    ...item,
+    categories: Array.isArray(item.categories) ? item.categories : [],
+  };
 };
 
 export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeBaseInput): Promise<KnowledgeBaseItem> => {
@@ -1003,64 +1012,53 @@ export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeB
     throw new Error('Knowledge base item not found');
   }
 
-  // Prepare update data - only include fields that are provided
+  // Prepare update data - build object with only fields that need updating
   const updateData: {
-    question?: string;
-    answer?: string;
-    url?: string;
-    categories?: string[] | null;
+    question: string;
+    answer: string;
+    url: string;
+    categories: string[];
     date_added: Date;
   } = {
     date_added: new Date(),
+    // Always set all required fields (question, answer, url, categories)
+    // Use provided values or fall back to existing values
+    question: data.question !== undefined ? data.question.trim() : (existing.question || ''),
+    answer: data.answer !== undefined ? data.answer.trim() : (existing.answer || ''),
+    url: data.url !== undefined ? ((data.url || '').trim() || 'manual-entry') : existing.url,
+    categories: data.categories !== undefined
+      ? (data.categories || []).filter(c => c && c.trim()).map(c => c.trim())
+      : (Array.isArray(existing.categories) ? existing.categories : []),
   };
 
-  // Handle question - use provided value or keep existing
-  if (data.question !== undefined) {
-    const question = data.question.trim();
-    if (!question) {
-      throw new Error('question must not be empty');
-    }
-    updateData.question = question;
-  } else {
-    updateData.question = existing.question;
+  // Validate required fields
+  if (!updateData.question) {
+    throw new Error('question must not be empty');
   }
-
-  // Handle answer - use provided value or keep existing
-  if (data.answer !== undefined) {
-    const answer = data.answer.trim();
-    if (!answer) {
-      throw new Error('answer must not be empty');
-    }
-    updateData.answer = answer;
-  } else {
-    updateData.answer = existing.answer;
-  }
-
-  // Handle url - use provided value or keep existing
-  if (data.url !== undefined) {
-    updateData.url = (data.url || '').trim() || 'manual-entry';
-  } else {
-    updateData.url = existing.url;
-  }
-
-  // Handle categories - use provided value or keep existing
-  if (data.categories !== undefined) {
-    const categories = (data.categories || []).filter(c => c && c.trim()).map(c => c.trim());
-    updateData.categories = categories; // Use empty array instead of null for Prisma String[]
-  } else {
-    updateData.categories = existing.categories || []; // Ensure it's never null
+  if (!updateData.answer) {
+    throw new Error('answer must not be empty');
   }
 
   const item = await prisma.customer_support_chatbot_data.update({
     where: { id },
     data: updateData,
   });
-  return item;
+
+  // Return with normalized categories (handle any null values)
+  return {
+    ...item,
+    categories: Array.isArray(item.categories) ? item.categories : [],
+  };
 };
 
 export const getKnowledgeBaseItemById = async (id: number): Promise<KnowledgeBaseItem | null> => {
   const item = await prisma.customer_support_chatbot_data.findUnique({
     where: { id },
   });
-  return item;
+  if (!item) return null;
+  // Handle null categories from database - convert to empty array for Prisma compatibility
+  return {
+    ...item,
+    categories: Array.isArray(item.categories) ? item.categories : [],
+  };
 };

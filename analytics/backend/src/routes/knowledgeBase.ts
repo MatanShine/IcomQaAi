@@ -80,6 +80,12 @@ knowledgeBaseRouter.put('/:id', async (req, res, next) => {
       date_added: item.date_added.toISOString(),
     });
   } catch (error) {
+    console.error('Error updating knowledge base item:', error);
+    // Log the full error for debugging
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     next(error);
   }
 });
