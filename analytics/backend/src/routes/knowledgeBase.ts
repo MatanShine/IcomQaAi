@@ -21,6 +21,16 @@ const updateKnowledgeBaseSchema = z.object({
   categories: z.array(z.string()).optional().nullable(),
 });
 
+const APP_BASE_URL = process.env.APP_BASE_URL || 'http://app:8000';
+
+async function notifyAppRefreshIndex(): Promise<void> {
+  try {
+    await fetch(`${APP_BASE_URL}/api/v1/refresh_index`);
+  } catch (error) {
+    console.warn('Failed to notify app to refresh index:', error);
+  }
+}
+
 export const knowledgeBaseRouter = Router();
 
 knowledgeBaseRouter.get('/', async (req, res, next) => {
@@ -46,6 +56,7 @@ knowledgeBaseRouter.post('/', async (req, res, next) => {
   try {
     const parsed = createKnowledgeBaseSchema.parse(req.body);
     const item = await createKnowledgeBaseItem(parsed);
+    notifyAppRefreshIndex();
     // Format response to match FastAPI structure
     res.json({
       id: item.id,
@@ -69,6 +80,7 @@ knowledgeBaseRouter.put('/:id', async (req, res, next) => {
     }
     const parsed = updateKnowledgeBaseSchema.parse(req.body);
     const item = await updateKnowledgeBaseItem(id, parsed);
+    notifyAppRefreshIndex();
     // Format response to match FastAPI structure
     res.json({
       id: item.id,
@@ -112,6 +124,25 @@ knowledgeBaseRouter.get('/:id', async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+knowledgeBaseRouter.post('/discovery', async (req, res, next) => {
+  try {
+    const { types } = req.body;
+    if (!types || !Array.isArray(types) || types.length === 0) {
+      return res.status(400).json({ error: 'types array is required (cs, pm, yt)' });
+    }
+    const response = await fetch(`${APP_BASE_URL}/api/v1/run_discovery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ types }),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Failed to run discovery:', error);
+    res.status(502).json({ error: 'Failed to reach app service for discovery' });
   }
 });
 

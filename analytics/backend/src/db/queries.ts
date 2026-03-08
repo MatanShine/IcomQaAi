@@ -943,7 +943,7 @@ export interface KnowledgeBaseItem {
   type: string;
   question: string | null;
   answer: string | null;
-  categories: string[] | null; // Prisma returns Json type, we'll convert it
+  categories: string[] | null;
   date_added: Date;
 }
 
@@ -961,36 +961,15 @@ export interface UpdateKnowledgeBaseInput {
   categories?: string[] | null;
 }
 
-// Helper to convert JSON string to string array
-function parseCategories(categories: string | null): string[] | null {
-  if (!categories) return null;
-  try {
-    const parsed = JSON.parse(categories);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(c => typeof c === 'string' && c.trim()).map(c => c.trim());
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// Helper to convert string array to JSON string
-function stringifyCategories(categories: string[] | null | undefined): string | null {
-  if (!categories || categories.length === 0) return null;
-  return JSON.stringify(categories.filter(c => c && c.trim()));
-}
-
 export const getAllKnowledgeBaseItems = async (): Promise<KnowledgeBaseItem[]> => {
   const items = await prisma.customer_support_chatbot_data.findMany({
     orderBy: {
       id: 'desc',
     },
   });
-  // Convert JSON string to array
   return items.map(item => ({
     ...item,
-    categories: parseCategories(item.categories),
+    categories: item.categories.length > 0 ? item.categories : null,
   }));
 };
 
@@ -1011,14 +990,13 @@ export const createKnowledgeBaseItem = async (data: CreateKnowledgeBaseInput): P
       answer,
       url,
       type: 'manual',
-      categories: stringifyCategories(categories), // Store as JSON string
+      categories,
     },
   });
 
-  // Return with parsed categories
   return {
     ...item,
-    categories: parseCategories(item.categories),
+    categories: item.categories.length > 0 ? item.categories : null,
   };
 };
 
@@ -1037,18 +1015,16 @@ export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeB
     question: string;
     answer: string;
     url: string;
-    categories: string | null; // Store as JSON string
+    categories: string[];
     date_added: Date;
   } = {
     date_added: new Date(),
-    // Always set all required fields (question, answer, url, categories)
-    // Use provided values or fall back to existing values
     question: data.question !== undefined ? data.question.trim() : (existing.question || ''),
     answer: data.answer !== undefined ? data.answer.trim() : (existing.answer || ''),
     url: data.url !== undefined ? ((data.url || '').trim() || 'manual-entry') : existing.url,
     categories: data.categories !== undefined
-      ? stringifyCategories(data.categories)
-      : existing.categories, // Keep existing JSON string
+      ? (data.categories || []).filter(c => c && c.trim()).map(c => c.trim())
+      : existing.categories,
   };
 
   // Validate required fields
@@ -1064,10 +1040,9 @@ export const updateKnowledgeBaseItem = async (id: number, data: UpdateKnowledgeB
     data: updateData,
   });
 
-  // Return with parsed categories
   return {
     ...item,
-    categories: parseCategories(item.categories),
+    categories: item.categories.length > 0 ? item.categories : null,
   };
 };
 
@@ -1076,9 +1051,8 @@ export const getKnowledgeBaseItemById = async (id: number): Promise<KnowledgeBas
     where: { id },
   });
   if (!item) return null;
-  // Convert JSON string to array
   return {
     ...item,
-    categories: parseCategories(item.categories),
+    categories: item.categories.length > 0 ? item.categories : null,
   };
 };

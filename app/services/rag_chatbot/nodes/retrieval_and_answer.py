@@ -31,30 +31,21 @@ def build_ticket_node(state: Dict[str, Any]) -> Dict[str, Any]:
         for msg in messages
     ])
     
-    ticket_prompt = f"""Based on the conversation below, generate a support ticket with category, title, and description.
+    ticket_prompt = f"""Based on the conversation below, generate a support ticket describing what the USER needs help with.
 
 Conversation:
 {conversation_text}
 
-CRITICAL: The ticket must contain ONLY technical details and explanations about the issue. DO NOT include any personal data about the customer such as:
-- Customer name
-- Email address
-- Phone number
-- Company name
-- Subdomain
-- Any other personally identifiable information
+IMPORTANT INSTRUCTIONS:
+- Focus ONLY on what the user asked about or needs help with. Do NOT summarize the assistant's answers.
+- Extract the user's problem, question, or request — not the solution that was provided.
+- DO NOT include personal data (name, email, phone, company, subdomain).
+- If the user asked multiple questions, focus on the main topic or the most recent unresolved question.
 
-Focus on:
-- Technical issue description
-- Steps the user tried
-- Error messages (if any)
-- Feature or area of the system affected
-- Technical explanations
-
-Generate a JSON object with exactly these fields:
-- category: Maximum 3 words describing the ticket category in Hebrew.
-- title: A concise title summarizing the issue in Hebrew (technical only, no personal data)
-- description: A short, informative description of the problem in Hebrew (technical details only, no personal data). Keep it brief and focused on the user's problem. If there is not much detail available, remain with a short description rather than making it longer.
+Generate a JSON object with exactly these fields in the same language as the user's messages in the conversation:
+- category: Maximum 3 words describing the ticket category
+- title: A concise title summarizing what the user needs help with (no personal data)
+- description: A short description of the user's problem or request (what they need, not what was answered). Keep it brief. If there is not much detail available, remain with a short description rather than making it longer.
 
 Return ONLY valid JSON, no other text:
 {{"category": "...", "title": "...", "description": "..."}}"""
@@ -95,9 +86,9 @@ Return ONLY valid JSON, no other text:
         # Recoverable error - JSON parsing failed, use fallback
         logger.warning(f"build_ticket_node: JSON parsing error: {e}, using fallback")
         ticket_json = json.dumps({
-            "category": "בקשת תמיכה",
-            "title": "בקשת תמיכת לקוחות",
-            "description": "המשתמש ביקש סיוע מתמיכת לקוחות."
+            "category": "Support Request",
+            "title": "Customer Support Request",
+            "description": "The user requested customer support assistance."
         }, ensure_ascii=False)
         state["output"] = ticket_json
         state["output_type"] = "ticket"
@@ -107,9 +98,9 @@ Return ONLY valid JSON, no other text:
         logger.error(f"build_ticket_node: Fatal error: {e}", exc_info=True)
         # Still provide fallback ticket but log the error
         ticket_json = json.dumps({
-            "category": "בקשת תמיכה",
-            "title": "בקשת תמיכת לקוחות",
-            "description": "המשתמש ביקש סיוע מתמיכת לקוחות."
+            "category": "Support Request",
+            "title": "Customer Support Request",
+            "description": "The user requested customer support assistance."
         }, ensure_ascii=False)
         state["output"] = ticket_json
         state["output_type"] = "ticket"
@@ -119,29 +110,62 @@ Return ONLY valid JSON, no other text:
 
 
 def capability_explanation_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Explain what the agent can and cannot do (out of scope flow)."""
-    capability_message = """אני כאן כדי לעזור בתמיכת לקוחות של זברה.
+    """Explain what the agent can and cannot do (out of scope flow).
+
+    Uses LLM to generate the message in the same language as the user.
+    """
+    messages = state.get("history", [])
+
+    llm = create_llm(temperature=0.1)
+
+    # Build conversation context so LLM can detect language
+    conversation_text = "\n".join([
+        f"{'User' if isinstance(msg, HumanMessage) else 'Assistant'}: {get_message_content(msg)}"
+        for msg in messages[-4:]
+    ])
+
+    prompt = f"""Based on the conversation below, generate a capability explanation message for a ZebraCRM customer support bot.
+
+Conversation:
+{conversation_text}
+
+IMPORTANT: Write the message in the SAME language as the user's messages.
+
+The message should explain:
+- You help with ZebraCRM customer support (questions about the system, features, troubleshooting, support)
+- You can answer questions about ZebraCRM features and products
+- You can help with issues and troubleshooting
+- You don't have access to personal data or the user's specific account
+- If their question isn't related to ZebraCRM, you probably can't help
+- They can ask a ZebraCRM-related question or request to open a support ticket
+
+Keep it concise with bullet points. Return ONLY the message text."""
+
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        capability_message = response.content.strip()
+    except Exception:
+        # Fallback to Hebrew (original behavior)
+        capability_message = """אני כאן כדי לעזור בתמיכת לקוחות של זברה.
 
 אני יכול/ה:
-• לענות על שאלות על המערכת והפיצ'רים של זברה  
-• לעזור בבעיות ותקלות  
-• להסביר על מוצרים ושירותים של זברה  
-• לעזור בשימוש נכון ובתהליכי עבודה במערכת  
+• לענות על שאלות על המערכת והפיצ'רים של זברה
+• לעזור בבעיות ותקלות
+• להסביר על מוצרים ושירותים של זברה
+• לעזור בשימוש נכון ובתהליכי עבודה במערכת
 
 חשוב לדעת:
-• אין לי גישה לנתונים אישיים או לחשבון הספציפי שלך במערכות זברה  
-• אני לא רואה פרטים מזהים, נתוני לקוח, או מידע רגיש בזמן אמת  
+• אין לי גישה לנתונים אישיים או לחשבון הספציפי שלך במערכות זברה
+• אני לא רואה פרטים מזהים, נתוני לקוח, או מידע רגיש בזמן אמת
 
 אם השאלה שלך לא קשורה לזברה – כנראה שלא אוכל לעזור.
 
 כדי להמשיך:
-• שאל/י שאלה שקשורה לזברה  
+• שאל/י שאלה שקשורה לזברה
 • או כתוב/י שברצונך לפתוח פנייה לתמיכה"""
 
-    messages = state.get("history", [])
     state["history"] = messages + [AIMessage(content=capability_message)]
     state["output_type"] = "text"
     state["output"] = capability_message
-    state["thinking_process"] = "build_ticket_or_start"  # Route to ticket router
-    
+    state["thinking_process"] = "build_ticket_or_start"
     return state

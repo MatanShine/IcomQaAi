@@ -10,6 +10,10 @@ class ChatRequest(BaseModel):
         example="icrmsw_8940_1761630008.5447",
         description="Identifier for the user session",
     )
+    open_ticket: int = Field(
+        default=0,
+        description="Set to 1 to generate a support ticket from conversation history",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -53,3 +57,10 @@ class KnowledgeBaseUpsert(BaseModel):
     answer: str
     url: str | None = None
     categories: list[str] | None = None
+
+
+class RunDiscoveryRequest(BaseModel):
+    types: list[str] = Field(
+        example=["cs", "pm", "yt"],
+        description="Discovery types to run: cs (customer support), pm (postman), yt (youtube)",
+    )

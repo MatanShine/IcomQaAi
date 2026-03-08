@@ -50,6 +50,9 @@ export const KnowledgeBasePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isIncompleteExpanded, setIsIncompleteExpanded] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
+  const [discoveryTypes, setDiscoveryTypes] = useState<Record<string, boolean>>({ cs: false, pm: false, yt: false });
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryMessage, setDiscoveryMessage] = useState<string | null>(null);
 
   const loadItems = async () => {
     setLoading(true);
@@ -177,6 +180,23 @@ export const KnowledgeBasePage = () => {
     }
   };
 
+  const handleDiscovery = async () => {
+    const selected = Object.entries(discoveryTypes).filter(([, v]) => v).map(([k]) => k);
+    if (selected.length === 0) { setError('יש לבחור לפחות סוג סריקה אחד.'); return; }
+    setIsDiscovering(true);
+    setDiscoveryMessage(null);
+    setError(null);
+    try {
+      await api.post('/knowledge-base/discovery', { types: selected });
+      setDiscoveryMessage('הסריקה החלה ברקע. הנתונים יתעדכנו בקרוב.');
+      setDiscoveryTypes({ cs: false, pm: false, yt: false });
+    } catch (err) {
+      setError('הפעלת הסריקה נכשלה.');
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   return (
     <div dir="rtl" className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -187,12 +207,35 @@ export const KnowledgeBasePage = () => {
               ניהול תוכן עבור הבוט (CustomerSupportChatbotData).
             </p>
           </div>
-          <button
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-            onClick={() => setIsAdding((prev) => !prev)}
-          >
-            הוספה +
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              onClick={() => setIsAdding((prev) => !prev)}
+            >
+              הוספה +
+            </button>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={discoveryTypes.cs} onChange={(e) => setDiscoveryTypes(p => ({...p, cs: e.target.checked}))} />
+                אתר תמיכה
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={discoveryTypes.pm} onChange={(e) => setDiscoveryTypes(p => ({...p, pm: e.target.checked}))} />
+                Postman API
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input type="checkbox" checked={discoveryTypes.yt} onChange={(e) => setDiscoveryTypes(p => ({...p, yt: e.target.checked}))} />
+                YouTube
+              </label>
+              <button
+                onClick={handleDiscovery}
+                disabled={isDiscovering}
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {isDiscovering ? 'סורק...' : 'הפעל סריקה'}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
@@ -282,6 +325,12 @@ export const KnowledgeBasePage = () => {
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
           {error}
+        </div>
+      )}
+
+      {discoveryMessage && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
+          {discoveryMessage}
         </div>
       )}
 

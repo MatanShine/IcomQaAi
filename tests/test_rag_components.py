@@ -192,3 +192,108 @@ async def test_rag_chatbot_delegates_to_components(monkeypatch):
 
     assert chunks == [("A", "ctx", 0, 0), ("", "ctx", 3, 4)]
     assert events["stream"] == "prompt"
+
+
+def test_capability_explanation_node_calls_llm(monkeypatch):
+    """capability_explanation_node should use LLM to generate message, not hardcoded text."""
+    from app.services.rag_chatbot.nodes import retrieval_and_answer as ra_module
+    from langchain_core.messages import HumanMessage
+
+    class _FakeLLM:
+        def invoke(self, messages):
+            return SimpleNamespace(content="I am here to help with ZebraCRM support.")
+
+    monkeypatch.setattr(ra_module, "create_llm", lambda **kwargs: _FakeLLM())
+
+    state = {
+        "history": [HumanMessage(content="What's the weather?")],
+        "output": "",
+        "output_type": "",
+        "thinking_process": "",
+    }
+    result = ra_module.capability_explanation_node(state)
+
+    assert result["output"] == "I am here to help with ZebraCRM support."
+    assert result["output_type"] == "text"
+    assert result["thinking_process"] == "build_ticket_or_start"
+
+
+def test_capability_explanation_node_fallback_on_error(monkeypatch):
+    """capability_explanation_node should fallback to Hebrew when LLM fails."""
+    from app.services.rag_chatbot.nodes import retrieval_and_answer as ra_module
+    from langchain_core.messages import HumanMessage
+
+    class _FakeLLM:
+        def invoke(self, messages):
+            raise Exception("LLM failed")
+
+    monkeypatch.setattr(ra_module, "create_llm", lambda **kwargs: _FakeLLM())
+
+    state = {
+        "history": [HumanMessage(content="hello")],
+        "output": "",
+        "output_type": "",
+        "thinking_process": "",
+    }
+    result = ra_module.capability_explanation_node(state)
+
+    assert result["output_type"] == "text"
+    assert "זברה" in result["output"]
+    assert result["thinking_process"] == "build_ticket_or_start"
+
+
+def test_think_node_system_prompt_has_language_rule(monkeypatch):
+    """think_node system prompt should include language matching instruction."""
+    from app.services.rag_chatbot.nodes import planning as planning_module
+    from langchain_core.messages import HumanMessage
+
+    captured_messages = []
+
+    class _FakeLLMWithTools:
+        def bind_tools(self, tools):
+            return self
+        def invoke(self, messages):
+            captured_messages.extend(messages)
+            return SimpleNamespace(content="test", tool_calls=[])
+
+    monkeypatch.setattr(planning_module, "create_llm", lambda **kwargs: _FakeLLMWithTools())
+    monkeypatch.setattr(planning_module, "_get_all_question_titles", lambda logger, **kw: [])
+
+    state = {
+        "history": [HumanMessage(content="hello")],
+        "tool_counts": {"bm25": 0, "mcq": 0, "final_answer": 0, "capability_explanation": 0},
+        "bm25_results": [],
+        "output": "",
+        "output_type": "",
+    }
+    planning_module.think_node(state)
+
+    system_prompt = captured_messages[0].content
+    assert "LANGUAGE RULE" in system_prompt
+
+
+def test_build_ticket_node_language_neutral(monkeypatch):
+    """build_ticket_node prompt should NOT hardcode 'in Hebrew'."""
+    from app.services.rag_chatbot.nodes import retrieval_and_answer as ra_module
+    from langchain_core.messages import HumanMessage
+
+    captured_prompt = []
+
+    class _FakeLLM:
+        def invoke(self, messages):
+            captured_prompt.append(messages[0].content)
+            return SimpleNamespace(content='{"category": "Test", "title": "Test", "description": "Test"}')
+
+    monkeypatch.setattr(ra_module, "create_llm", lambda **kwargs: _FakeLLM())
+
+    state = {
+        "history": [HumanMessage(content="my system is broken")],
+        "output": "",
+        "output_type": "",
+        "thinking_process": "",
+    }
+    result = ra_module.build_ticket_node(state)
+
+    assert result["output_type"] == "ticket"
+    assert "in Hebrew" not in captured_prompt[0]
+    assert "same language" in captured_prompt[0].lower()

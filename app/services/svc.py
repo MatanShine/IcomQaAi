@@ -57,6 +57,56 @@ def _scrape_all(logger: logging.Logger) -> List[dict]:
     return data
 
 
+def _scrape_by_types(logger: logging.Logger, types: List[str]) -> List[dict]:
+    """Scrape data from selected sources only."""
+    type_to_scraper = {
+        "cs": lambda: ZebraSupportScraper("https://support.zebracrm.com", logger),
+        "pm": lambda: PostmanScraper(
+            "https://documenter.getpostman.com/view/14343450/Tzm5Jxfs#82fa2bfd-a865-48f1-9a8f-e36d81e298f1",
+            logger,
+        ),
+        "yt": lambda: YoutubeScraper("https://www.youtube.com", logger),
+    }
+    data: List[dict] = []
+    for source_type in types:
+        factory = type_to_scraper.get(source_type)
+        if not factory:
+            logger.warning(f"Unknown scraper type: {source_type}, skipping")
+            continue
+        scraper = factory()
+        logger.info(f"Using {scraper.__class__.__name__} to scrape data")
+        try:
+            scraped = scraper.scrape()
+            for item in scraped:
+                item.setdefault("type", source_type)
+                item.setdefault("categories", [])
+            data.extend(scraped)
+            logger.info(f"Scraped {len(scraped)} items from {scraper.__class__.__name__}")
+        except (ConnectionError, TimeoutError) as e:
+            logger.warning(f"Network error scraping {scraper.__class__.__name__}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to scrape {scraper.__class__.__name__}: {e}", exc_info=True)
+    return data
+
+
+def add_data_by_types(db: Session, logger: logging.Logger, types: List[str]) -> int:
+    """Add new data from selected scrapers into DB and rebuild index."""
+    data = _scrape_by_types(logger, types)
+    amount_added = 0
+    for item in data:
+        exists = db.query(CustomerSupportChatbotData).filter(
+            CustomerSupportChatbotData.url == item["url"]
+        ).first()
+        if not exists:
+            db.add(CustomerSupportChatbotData(**item))
+            amount_added += 1
+    if amount_added:
+        db.commit()
+        RAGTrainer(db, logger).run()
+    logger.info(f"Added {amount_added} new items from types {types}")
+    return amount_added
+
+
 def add_data(db: Session, logger: logging.Logger) -> int:
     """Add new data from scrapers into the database and reinitialize the chatbot."""
     data = _scrape_all(logger)

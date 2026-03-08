@@ -207,6 +207,8 @@ Available Questions in Knowledge Base ({len(question_titles)} total):
     # Build system prompt
     system_prompt = f"""You are a customer support assistant for ZebraCRM.
 
+LANGUAGE RULE (HIGHEST PRIORITY): You MUST respond in the SAME language as the user's message. If the user writes in Hebrew, respond in Hebrew. If in English, respond in English. Match the user's language exactly. This applies to ALL your outputs: final answers, MCQ questions, ticket fields, and any other text you generate. Even if the knowledge base content is in a different language, YOUR response must match the USER's language.
+
 CRITICAL SCOPE DEFINITION:
 You ONLY answer questions about ZebraCRM (the CRM system, its features, troubleshooting, support, and how to use ZebraCRM for business operations). 
 
@@ -226,7 +228,7 @@ If the question is unrelated to ZebraCRM, you MUST use capability_explanation_to
 
 You have access to the following tools:
 1. bm25_tool: Search the knowledge base with a query. Returns up to 5 results formatted as <data_1>...</data_1>...<data_5>...</data_5>
-2. mcq_tool: Ask a multiple choice question to clarify user needs. Provide a 'question' (what to ask the user) and 'search_query' (keywords to find relevant options). The tool will automatically search the knowledge base and present options from existing data.
+2. mcq_tool: Ask a multiple choice question to clarify user needs. IMPORTANT: Before using this tool, you MUST first search the knowledge base using bm25_tool. Then provide a 'question' and 'answers' (2-3 options based on search results). Question and answers must be coherent.
 3. final_answer_tool: Provide the final answer to the user's question. ONLY use this for ZebraCRM-related questions that you can answer.
 4. capability_explanation_tool: Explain what you can and cannot do. Use this for questions completely unrelated to ZebraCRM. You MUST use this tool when the question is not about ZebraCRM.
 5. build_ticket_tool: Build a support ticket when user explicitly requests a ticket (e.g., "פנייה", "לפתוח פנייה", "אפשר פנייה", "open ticket") OR when you know the user's problem but couldn't solve it OR user asks for customer support contact
@@ -257,11 +259,11 @@ Use tools strategically to gather information before providing a final answer. I
         query: str = Field(description="The search query to find relevant information")
     
     class MCQToolInput(BaseModel):
-        question: str = Field(description="The multiple choice question to ask the user to clarify their needs")
-        search_query: str = Field(description="A search query to find relevant answer options from the knowledge base")
+        question: str = Field(description="The multiple choice question to ask the user to clarify their needs. Must be in the same language as the user's message.")
+        answers: list[str] = Field(description="2-3 answer options based on knowledge base search results, in the user's language")
     
     class FinalAnswerToolInput(BaseModel):
-        answer: str = Field(description="The final answer to provide to the user")
+        answer: str = Field(description="The final answer to provide to the user. Must be in the same language as the user's message.")
     
     class CapabilityExplanationToolInput(BaseModel):
         pass
@@ -293,48 +295,30 @@ Use tools strategically to gather information before providing a final answer. I
         
         return "\n".join(formatted_results)
     
-    def mcq_tool_func(question: str, search_query: str) -> str:
+    def mcq_tool_func(question: str, answers: list[str]) -> str:
         """Ask a multiple choice question to clarify user needs.
-        
-        Uses BM25 search to find relevant answer options from the knowledge base,
-        ensuring all MCQ options point to existing data.
+
+        The LLM provides both the question and answer options directly,
+        based on prior bm25_tool search results.
         """
-        retriever = _get_shared_retriever(logger)
-        try:
-            # Search for relevant content using the search query
-            contexts = retriever.retrieve_contexts(search_query, history=[])
-        except (AttributeError, ValueError) as e:
-            # Recoverable error - retriever state issue
-            logger.warning(f"mcq_tool: Retriever error: {e}")
-            contexts = {}
-        except Exception as e:
-            # Fatal error - unexpected failure
-            logger.error(f"mcq_tool: Unexpected BM25 search error: {e}", exc_info=True)
-            contexts = {}
-        
-        # Extract unique question titles from search results as MCQ options
-        answers = []
-        seen_questions = set()
-        if contexts:
-            for q, a, url in contexts.values():
-                # Use the question title as the MCQ option
-                if q and q.strip() and q.strip() not in seen_questions:
-                    answers.append(q.strip())
-                    seen_questions.add(q.strip())
-                    if len(answers) >= 3:  # Limit to 3 options maximum
-                        break
-        
-        # If no results found, use fallback question titles from cache
-        if not answers:
+        # Strip, dedupe, and filter empty answers
+        seen = set()
+        valid_answers = []
+        for a in answers:
+            stripped = a.strip() if isinstance(a, str) else ""
+            if stripped and stripped not in seen:
+                valid_answers.append(stripped)
+                seen.add(stripped)
+                if len(valid_answers) >= 3:
+                    break
+
+        # Fallback if fewer than 2 valid answers
+        if len(valid_answers) < 2:
             all_titles = _get_all_question_titles(logger)
-            # Use first 3 titles as fallback
-            answers = all_titles[:3] if all_titles else ["לא נמצאו תוצאות רלוונטיות"]
-        
-        # Ensure maximum 3 answers (safeguard)
-        answers = answers[:3]
-        
-        logger.info(f"mcq_tool: Generated {len(answers)} options from DB for question: {question}")
-        return f"<question>{question}</question><answers>{json.dumps(answers, ensure_ascii=False)}</answers>"
+            valid_answers = all_titles[:3] if all_titles else ["לא נמצאו תוצאות רלוונטיות"]
+
+        logger.info(f"mcq_tool: {len(valid_answers)} options for question: {question}")
+        return f"<question>{question}</question><answers>{json.dumps(valid_answers, ensure_ascii=False)}</answers>"
     
     def final_answer_tool_func(answer: str) -> str:
         """Provide the final answer to the user's question."""
@@ -356,34 +340,25 @@ Use tools strategically to gather information before providing a final answer. I
             for msg in messages
         ])
         
-        ticket_prompt = f"""Based on the conversation below, generate a support ticket with category, title, and description.
+        ticket_prompt = f"""Based on the conversation below, generate a support ticket describing what the USER needs help with.
 
 Conversation:
 {conversation_text}
 
-CRITICAL: The ticket must contain ONLY technical details and explanations about the issue. DO NOT include any personal data about the customer such as:
-- Customer name
-- Email address
-- Phone number
-- Company name
-- Subdomain
-- Any other personally identifiable information
+IMPORTANT INSTRUCTIONS:
+- Focus ONLY on what the user asked about or needs help with. Do NOT summarize the assistant's answers.
+- Extract the user's problem, question, or request — not the solution that was provided.
+- DO NOT include personal data (name, email, phone, company, subdomain).
+- If the user asked multiple questions, focus on the main topic or the most recent unresolved question.
 
-Focus on:
-- Technical issue description
-- Steps the user tried
-- Error messages (if any)
-- Feature or area of the system affected
-- Technical explanations
-
-Generate a JSON object with exactly these fields:
-- category: Maximum 3 words describing the ticket category in Hebrew.
-- title: A concise title summarizing the issue in Hebrew (technical only, no personal data)
-- description: A short, informative description of the problem in Hebrew (technical details only, no personal data). Keep it brief and focused on the user's problem. If there is not much detail available, remain with a short description rather than making it longer.
+Generate a JSON object with exactly these fields in the same language as the user's messages in the conversation:
+- category: Maximum 3 words describing the ticket category
+- title: A concise title summarizing what the user needs help with (no personal data)
+- description: A short description of the user's problem or request (what they need, not what was answered). Keep it brief. If there is not much detail available, remain with a short description rather than making it longer.
 
 Return ONLY valid JSON, no other text:
 {{"category": "...", "title": "...", "description": "..."}}"""
-        
+
         try:
             response = ticket_llm.invoke([HumanMessage(content=ticket_prompt)])
             ticket_json = response.content.strip()
@@ -407,11 +382,10 @@ Return ONLY valid JSON, no other text:
             return json.dumps(ticket_data, ensure_ascii=False)
         except Exception as e:
             logger.error(f"build_ticket_tool error: {e}", exc_info=True)
-            # Fallback ticket in Hebrew
             return json.dumps({
-                "category": "בקשת תמיכה",
-                "title": "בקשת תמיכת לקוחות",
-                "description": "המשתמש ביקש סיוע מתמיכת לקוחות."
+                "category": "Support Request",
+                "title": "Customer Support Request",
+                "description": "The user requested customer support assistance."
             }, ensure_ascii=False)
     
     # Create StructuredTool objects
@@ -425,13 +399,13 @@ Return ONLY valid JSON, no other text:
         StructuredTool.from_function(
             func=mcq_tool_func,
             name="mcq_tool",
-            description="Ask a multiple choice question to clarify user needs. Provide a question and a search_query - the tool will search the knowledge base and return relevant options from existing data. Can only be used once per user input.",
+            description="Present a multiple choice question. You MUST search with bm25_tool BEFORE using this tool. Provide 'question' and 'answers' (2-3 options from search results). Question and answers must be coherent and in the SAME language as the user's message. Max 1 use per input.",
             args_schema=MCQToolInput,
         ),
         StructuredTool.from_function(
             func=final_answer_tool_func,
             name="final_answer_tool",
-            description="Provide the final answer to the user's question. ONLY use this for ZebraCRM-related questions that you can answer based on the knowledge base or conversation context. Do NOT use this for questions unrelated to ZebraCRM. Can only be used once per user input.",
+            description="Provide the final answer to the user's question in the SAME language as the user's message. ONLY use this for ZebraCRM-related questions that you can answer based on the knowledge base or conversation context. Do NOT use this for questions unrelated to ZebraCRM. Can only be used once per user input.",
             args_schema=FinalAnswerToolInput,
         ),
         StructuredTool.from_function(
@@ -486,7 +460,7 @@ Return ONLY valid JSON, no other text:
                     else:
                         # Already used capability_explanation, provide fallback message in Hebrew
                         tool_name = "final_answer_tool"
-                        tool_args = {"answer": "אני יכול לעזור רק בשאלות הקשורות לזברה. אנא שאל אותי על תכונות זברה, פתרון בעיות או תמיכה."}
+                        tool_args = {"answer": "I can only help with ZebraCRM-related questions. Please ask me about ZebraCRM features, troubleshooting, or support."}
                 else:
                     tool_name = "final_answer_tool"
                     tool_args = {"answer": "I've searched extensively but couldn't find specific information. Could you provide more details or rephrase your question?"}
@@ -566,11 +540,11 @@ Return ONLY valid JSON, no other text:
                 
             elif tool_name == "mcq_tool":
                 question = tool_args.get("question", "")
-                search_query = tool_args.get("search_query", question)  # Fallback to question if no search_query
-                logger.info(f"think_node: Calling mcq_tool with question: {question}, search_query: {search_query}")
-                
-                # Call the tool function - it will search DB and return valid options
-                mcq_text = mcq_tool_func(question, search_query)
+                answers_from_llm = tool_args.get("answers", [])
+                logger.info(f"think_node: Calling mcq_tool with question: {question}, answers: {answers_from_llm}")
+
+                # Call the tool function with LLM-provided answers
+                mcq_text = mcq_tool_func(question, answers_from_llm)
                 
                 # Extract answers from the mcq_text for state storage
                 answers_match = re.search(r'<answers>(.*?)</answers>', mcq_text)

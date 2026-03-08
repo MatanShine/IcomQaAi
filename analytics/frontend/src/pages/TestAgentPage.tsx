@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { kbApi } from '../lib/kbApi';
+import { api } from '../lib/api';
 
 type MCQData = {
   question: string;
@@ -93,7 +93,7 @@ export const TestAgentPage = () => {
     currentMessageRef.current = '';
 
     try {
-      const response = await fetch(`${kbApi.defaults.baseURL}/chat/agent`, {
+      const response = await fetch(`${api.defaults.baseURL}/agent/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ export const TestAgentPage = () => {
     currentMessageRef.current = '';
 
     try {
-      const response = await fetch(`${kbApi.defaults.baseURL}/chat/agent`, {
+      const response = await fetch(`${api.defaults.baseURL}/agent/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -484,6 +484,75 @@ export const TestAgentPage = () => {
     );
   };
 
+  const handleOpenTicket = async () => {
+    if (isLoading) return;
+
+    setIsLoading(true);
+    setBotThoughts(null);
+    currentMessageRef.current = '';
+
+    try {
+      const response = await fetch(`${api.defaults.baseURL}/agent/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: '',
+          session_id: sessionId,
+          open_ticket: 1,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('No response body');
+
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const dataStr = line.slice(6).trim();
+          if (!dataStr || dataStr === '{}') continue;
+          try {
+            const data = JSON.parse(dataStr);
+            if (data.node) { setBotThoughts(data.node); continue; }
+            if (data.output_type === 'ticket' && data.category && data.title && data.description) {
+              const ticketMessageId = `ticket_${Date.now()}`;
+              const ticketMessage: Message = {
+                id: ticketMessageId, role: 'agent', content: '', timestamp: new Date(),
+                ticket: { category: data.category, title: data.title, description: data.description },
+              };
+              setMessages((prev) => [...prev, ticketMessage]);
+              setTicketInteractions((prev) => ({
+                ...prev,
+                [ticketMessageId]: {
+                  messageId: ticketMessageId, category: data.category,
+                  title: data.title, description: data.description, submitted: false,
+                },
+              }));
+            }
+          } catch (e) { console.error('Error parsing SSE data:', e, dataStr); }
+        }
+      }
+    } catch (error) {
+      console.error('Error opening ticket:', error);
+      setMessages((prev) => [...prev, {
+        id: `error_${Date.now()}`, role: 'agent',
+        content: 'Error: Failed to open ticket. Please try again.', timestamp: new Date(),
+      }]);
+    } finally {
+      setIsLoading(false);
+      setBotThoughts(null);
+    }
+  };
+
   const handleTicketModification = async () => {
     const hasSubmittedTicket = Object.values(ticketInteractions).some(t => t.submitted);
     if (!hasSubmittedTicket || !inputValue.trim() || isLoading) return;
@@ -502,7 +571,7 @@ export const TestAgentPage = () => {
     currentMessageRef.current = '';
 
     try {
-      const response = await fetch(`${kbApi.defaults.baseURL}/chat/agent`, {
+      const response = await fetch(`${api.defaults.baseURL}/agent/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -655,11 +724,20 @@ export const TestAgentPage = () => {
 
   return (
     <div dir="rtl" className="flex h-[calc(100vh-12rem)] flex-col space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Test Agent</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Session ID: {sessionId || 'Generating...'}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Test Agent</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Session ID: {sessionId || 'Generating...'}
+          </p>
+        </div>
+        <button
+          onClick={handleOpenTicket}
+          disabled={isLoading}
+          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-amber-300"
+        >
+          Open Ticket
+        </button>
       </div>
 
       {/* Messages Area */}
@@ -881,7 +959,7 @@ export const TestAgentPage = () => {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (ticketState?.submitted) {
+                if (Object.values(ticketInteractions).some(t => t.submitted)) {
                   handleTicketModification();
                 } else {
                   handleSendMessage();
