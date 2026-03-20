@@ -169,3 +169,22 @@ def create_llm(temperature: float = 0.1, model: str = None) -> ChatOpenAI:
         temperature=temperature,
     )
 
+
+def extract_llm_token_usage(response) -> tuple[int, int]:
+    """Extract (input_tokens, output_tokens) from a LangChain AIMessage response.
+
+    Checks usage_metadata first (modern LangChain), falls back to response_metadata.
+    """
+    if hasattr(response, 'usage_metadata') and response.usage_metadata:
+        return (
+            response.usage_metadata.get('input_tokens', 0) or 0,
+            response.usage_metadata.get('output_tokens', 0) or 0,
+        )
+    if hasattr(response, 'response_metadata') and response.response_metadata:
+        tu = response.response_metadata.get('token_usage', {})
+        return (
+            tu.get('prompt_tokens', 0) or 0,
+            tu.get('completion_tokens', 0) or 0,
+        )
+    return (0, 0)
+
