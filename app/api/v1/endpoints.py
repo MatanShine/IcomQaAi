@@ -19,6 +19,7 @@ from app.services import svc
 from app.services.rag_chatbot import RAGChatbot
 from app.services.training.rag import RAGTrainer
 from app.services.rag_chatbot.agent import Agent
+from app.services.rag_chatbot.utils import extract_llm_token_usage
 from app.services.rag_chatbot.nodes.planning import (
     invalidate_question_titles_cache,
     invalidate_bm25_retriever,
@@ -298,6 +299,7 @@ Return ONLY valid JSON:
         llm = create_llm(temperature=0.1)
         response = llm.invoke([HumanMessage(content=ticket_prompt)])
         ticket_json = response.content.strip()
+        ticket_tokens_sent, ticket_tokens_received = extract_llm_token_usage(response)
 
         json_match = re.search(r'\{.*\}', ticket_json, re.DOTALL)
         if json_match:
@@ -320,7 +322,7 @@ Return ONLY valid JSON:
             answer=answer,
             context=json.dumps({}, ensure_ascii=False),
             history=json.dumps(history),
-            tokens_sent=0, tokens_received=0,
+            tokens_sent=ticket_tokens_sent, tokens_received=ticket_tokens_received,
             session_id=req.session_id,
             theme=theme,
             duration=(datetime.now() - start_time).total_seconds(),
@@ -397,16 +399,25 @@ async def agent_stream(req: ChatRequest, db: Session = Depends(get_db)):
                 elif event_type == "done":
                     # After response is complete, save to database
                     answer = "".join(full_answer)
-                    
-                    # Save to database (no summary management)
+
+                    # Extract metadata from agent (context + tokens)
+                    agent_context = {}
+                    agent_tokens_sent = 0
+                    agent_tokens_received = 0
+                    if isinstance(data, dict):
+                        agent_context = data.get("bm25_raw_contexts", {})
+                        agent_tokens_sent = data.get("total_tokens_sent", 0)
+                        agent_tokens_received = data.get("total_tokens_received", 0)
+
+                    # Save to database
                     db.add(
                         CustomerSupportChatbotAI(
                             question=req.message,
                             answer=answer,
-                            context=json.dumps({}, ensure_ascii=False),
+                            context=json.dumps(agent_context, ensure_ascii=False),
                             history=json.dumps(history),
-                            tokens_sent=0,
-                            tokens_received=0,
+                            tokens_sent=agent_tokens_sent,
+                            tokens_received=agent_tokens_received,
                             session_id=req.session_id,
                             theme=theme,
                             duration=(datetime.now() - start_time).total_seconds(),
@@ -414,7 +425,7 @@ async def agent_stream(req: ChatRequest, db: Session = Depends(get_db)):
                             date_asked=datetime.now(),
                         )
                     )
-                    
+
                     db.commit()
                     # Send final completion message
                     yield "data: {}\n\n"
