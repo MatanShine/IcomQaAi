@@ -97,6 +97,20 @@ class Agent:
             checkpointer=CHECKPOINTER
         )
 
+    def _get_done_metadata(self, config: dict) -> dict:
+        """Collect metadata from final graph state for DB storage."""
+        metadata = {}
+        try:
+            snapshot = self.graph.get_state(config)
+            if snapshot and hasattr(snapshot, "values") and snapshot.values:
+                vals = snapshot.values
+                metadata["bm25_raw_contexts"] = vals.get("bm25_raw_contexts", {})
+                metadata["total_tokens_sent"] = vals.get("total_tokens_sent", 0)
+                metadata["total_tokens_received"] = vals.get("total_tokens_received", 0)
+        except Exception as e:
+            self.logger.warning(f"Could not read final state for metadata: {e}")
+        return metadata
+
     async def stream(
         self, message: str, history: list[BaseMessage] = None, thread_id: str = None
     ) -> AsyncIterator[tuple[str, str]]:
@@ -242,7 +256,7 @@ class Agent:
 
         # Skip execution if run_input is None (graph already ended)
         if run_input is None:
-            yield ("done", "")
+            yield ("done", self._get_done_metadata(config))
             return
         
         previous_node = None
@@ -288,7 +302,7 @@ class Agent:
                                 })
                             # Stop execution here - checkpoint is saved, wait for user response
                             self.logger.info("MCQ checkpoint reached, stopping execution to wait for user input")
-                            yield ("done", "")
+                            yield ("done", self._get_done_metadata(config))
                             return
                         
                         # Check if we hit capability explanation checkpoint
@@ -299,7 +313,7 @@ class Agent:
                                 yield ("tool", tool_name)
                             # Stop execution here - checkpoint is saved, wait for user response
                             self.logger.info("Capability explanation checkpoint reached, stopping execution to wait for user input")
-                            yield ("done", "")
+                            yield ("done", self._get_done_metadata(config))
                             return
                         
                         # Emit tool name if it's a tool call
@@ -427,5 +441,5 @@ class Agent:
             # If we get here, either the graph ended or we hit a checkpoint
             self.logger.info(f"Breaking loop after iteration {iteration}")
             break
-        
-        yield ("done", "")
+
+        yield ("done", self._get_done_metadata(config))
