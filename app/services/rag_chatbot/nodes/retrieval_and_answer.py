@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Dict, Any
 from langchain_core.messages import AIMessage, HumanMessage
-from app.services.rag_chatbot.utils import get_message_content, create_llm
+from app.services.rag_chatbot.utils import get_message_content, create_llm, extract_llm_token_usage
 import json
 import logging
 import re
@@ -55,7 +55,12 @@ Return ONLY valid JSON, no other text:
     try:
         response = ticket_llm.invoke([HumanMessage(content=ticket_prompt)])
         ticket_json = response.content.strip()
-        
+
+        # Accumulate token usage
+        sent, received = extract_llm_token_usage(response)
+        state["total_tokens_sent"] = state.get("total_tokens_sent", 0) + sent
+        state["total_tokens_received"] = state.get("total_tokens_received", 0) + received
+
         # Try to extract JSON from response (in case LLM adds extra text)
         json_match = re.search(r'\{.*\}', ticket_json, re.DOTALL)
         if json_match:
@@ -144,6 +149,11 @@ Keep it concise with bullet points. Return ONLY the message text."""
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
         capability_message = response.content.strip()
+
+        # Accumulate token usage
+        sent, received = extract_llm_token_usage(response)
+        state["total_tokens_sent"] = state.get("total_tokens_sent", 0) + sent
+        state["total_tokens_received"] = state.get("total_tokens_received", 0) + received
     except Exception:
         # Fallback to Hebrew (original behavior)
         capability_message = """אני כאן כדי לעזור בתמיכת לקוחות של זברה.
