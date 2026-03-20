@@ -12,6 +12,7 @@ from app.services.rag_chatbot.utils import (
     get_last_user_message,
     get_message_content,
     create_llm,
+    extract_llm_token_usage,
 )
 import json
 import logging
@@ -186,7 +187,10 @@ def think_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # Use setdefault to initialize and get in one operation
     tool_counts: Dict[str, int] = state.setdefault("tool_counts", {"bm25": 0, "mcq": 0, "final_answer": 0, "capability_explanation": 0})
     bm25_results: List[str] = state.setdefault("bm25_results", [])
-    
+    bm25_raw_contexts: Dict = state.setdefault("bm25_raw_contexts", {})
+    total_tokens_sent: int = state.get("total_tokens_sent", 0)
+    total_tokens_received: int = state.get("total_tokens_received", 0)
+
     # Initialize other state defaults
     state.setdefault("output", "")
     state.setdefault("output_type", "")
@@ -272,28 +276,26 @@ Use tools strategically to gather information before providing a final answer. I
         pass  # No input needed - LLM generates from conversation context
     
     # Create tool functions
-    def bm25_tool_func(query: str) -> str:
-        """Search the knowledge base with a query. Returns up to 5 results."""
+    def bm25_tool_func(query: str) -> tuple[str, dict]:
+        """Search the knowledge base with a query. Returns formatted results and raw contexts."""
         retriever = _get_shared_retriever(logger)
         try:
             contexts = retriever.retrieve_contexts(query, history=[])
         except (AttributeError, ValueError) as e:
-            # Recoverable error - retriever state issue
             logger.warning(f"bm25_tool: Retriever error: {e}")
             contexts = {}
         except Exception as e:
-            # Fatal error - unexpected failure
             logger.error(f"bm25_tool: Unexpected error: {e}", exc_info=True)
             contexts = {}
-        
+
         formatted_results = []
         if contexts:
             for idx, (q, a, url) in enumerate(contexts.values(), 1):
                 formatted_results.append(f"<data_{idx}>\nQuestion: {q}\nAnswer: {a}\n</data_{idx}>")
         else:
             formatted_results.append("<data_1>No results found</data_1>")
-        
-        return "\n".join(formatted_results)
+
+        return "\n".join(formatted_results), contexts
     
     def mcq_tool_func(question: str, answers: list[str]) -> str:
         """Ask a multiple choice question to clarify user needs.
@@ -362,7 +364,15 @@ Return ONLY valid JSON, no other text:
         try:
             response = ticket_llm.invoke([HumanMessage(content=ticket_prompt)])
             ticket_json = response.content.strip()
-            
+
+            # Accumulate token usage from ticket LLM call
+            sent, received = extract_llm_token_usage(response)
+            nonlocal total_tokens_sent, total_tokens_received
+            total_tokens_sent += sent
+            total_tokens_received += received
+            state["total_tokens_sent"] = total_tokens_sent
+            state["total_tokens_received"] = total_tokens_received
+
             # Try to extract JSON from response (in case LLM adds extra text)
             # Find JSON object boundaries
             json_match = re.search(r'\{.*\}', ticket_json, re.DOTALL)
@@ -431,7 +441,14 @@ Return ONLY valid JSON, no other text:
     try:
         # Invoke LLM with tool calling
         response = llm_with_tools.invoke(llm_messages)
-        
+
+        # Accumulate token usage from LLM response
+        sent, received = extract_llm_token_usage(response)
+        total_tokens_sent += sent
+        total_tokens_received += received
+        state["total_tokens_sent"] = total_tokens_sent
+        state["total_tokens_received"] = total_tokens_received
+
         # Check if LLM wants to call a tool
         if hasattr(response, 'tool_calls') and response.tool_calls:
             tool_call = response.tool_calls[0]  # Handle first tool call
@@ -490,7 +507,11 @@ Return ONLY valid JSON, no other text:
                 logger.info(f"think_node: Calling bm25_tool with query: {query}")
                 
                 # Call the tool function
-                result_text = bm25_tool_func(query)
+                result_text, raw_contexts = bm25_tool_func(query)
+                # Merge raw contexts for DB storage (keyed by passage index, deduplicates across calls)
+                for key, value in raw_contexts.items():
+                    bm25_raw_contexts[str(key)] = list(value)
+                state["bm25_raw_contexts"] = bm25_raw_contexts
                 bm25_results.append(result_text)
                 
                 # Update state
