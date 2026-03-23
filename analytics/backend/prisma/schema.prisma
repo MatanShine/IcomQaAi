@@ -53,3 +53,29 @@ model customer_support_chatbot_data {
   categories String[]
   date_added DateTime  @default(now())
 }
+
+model prompt_versions {
+  id           Int       @id @default(autoincrement())
+  prompt_type  String
+  version      Int
+  name         String
+  content      String
+  status       String    @default("draft")
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @default(now()) @updatedAt
+  published_at DateTime?
+
+  prompt_test_sessions prompt_test_sessions[]
+
+  @@unique([prompt_type, version])
+}
+
+model prompt_test_sessions {
+  id                Int      @id @default(autoincrement())
+  session_id        String
+  prompt_type       String
+  prompt_version_id Int
+  created_at        DateTime @default(now())
+
+  prompt_version prompt_versions @relation(fields: [prompt_version_id], references: [id])
+}
