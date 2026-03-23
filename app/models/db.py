@@ -160,6 +160,38 @@ class AgentEvent(Base):
     payload = Column(JSON, nullable=True)
 
 
+class PromptVersion(Base):
+    """Stores versioned prompt templates managed through the analytics UI."""
+
+    __tablename__ = "prompt_versions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    prompt_type = Column(String, nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    status = Column(String, nullable=False, default="draft")
+    created_at = Column(DateTime, default=lambda: datetime.now(), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(), nullable=False)
+    published_at = Column(DateTime, nullable=True)
+
+
+class PromptTestSession(Base):
+    """Tracks which prompt version was used in each Test Agent session."""
+
+    __tablename__ = "prompt_test_sessions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    session_id = Column(String, nullable=False, index=True)
+    prompt_type = Column(String, nullable=False)
+    prompt_version_id = Column(
+        Integer,
+        ForeignKey("prompt_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(), nullable=False)
+
+
 def _fix_auto_increment(table_name: str) -> None:
     """Fix auto-increment for a table by creating a sequence if it doesn't exist."""
     if not settings.database_url.startswith("postgresql"):
@@ -222,3 +254,5 @@ def init_db() -> None:
     _fix_auto_increment("tickets")
     _fix_auto_increment("agent_runs")
     _fix_auto_increment("agent_events")
+    _fix_auto_increment("prompt_versions")
+    _fix_auto_increment("prompt_test_sessions")
