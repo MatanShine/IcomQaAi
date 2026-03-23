@@ -9,6 +9,7 @@ const navItems = [
   { to: '/monitoring', label: 'Monitoring' },
   { to: '/comments', label: 'Comments' },
   { to: '/knowledge-base', label: 'Knowledge Base' },
+  { to: '/prompt-management', label: 'Prompt Management' },
   { to: '/test-agent', label: 'Test Agent' },
 ];
 

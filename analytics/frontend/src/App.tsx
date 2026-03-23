@@ -6,6 +6,7 @@ import { UserUsagePage } from './pages/UserUsagePage';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { CommentsPage } from './pages/CommentsPage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
+import { PromptManagementPage } from './pages/PromptManagementPage';
 import { TestAgentPage } from './pages/TestAgentPage';
 import { Layout } from './components/Layout';
 
@@ -19,6 +20,7 @@ const App = () => {
         <Route path="/monitoring" element={<MonitoringPage />} />
         <Route path="/comments" element={<CommentsPage />} />
         <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+        <Route path="/prompt-management" element={<PromptManagementPage />} />
         <Route path="/test-agent" element={<TestAgentPage />} />
         <Route path="/users/:userId" element={<UserDetailPage />} />
       </Routes>
