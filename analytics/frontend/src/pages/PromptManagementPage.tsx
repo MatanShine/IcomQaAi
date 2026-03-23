@@ -373,8 +373,8 @@ function DiffPanels({ versionA, versionB }: { versionA: PromptVersion; versionB:
   function renderLines(lines: { text: string; type: string }[]) {
     return lines.map((line, i) => {
       let bg = '';
-      if (line.type === 'removed') bg = 'bg-red-100 dark:bg-red-900/40';
-      if (line.type === 'added') bg = 'bg-emerald-100 dark:bg-emerald-900/40';
+      if (line.type === 'removed') bg = 'bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200';
+      if (line.type === 'added') bg = 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200';
       return (
         <div key={i} className={`${bg} px-1 min-h-[1.4em]`}>
           {line.text || '\u00A0'}
