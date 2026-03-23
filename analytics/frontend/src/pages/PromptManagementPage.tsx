@@ -60,8 +60,8 @@ function highlightVariables(
       const count = counts[match[1]];
       const cls =
         count > 1
-          ? 'bg-amber-700/60 text-amber-200 border border-amber-500/50'
-          : 'bg-blue-700/60 text-blue-200 border border-blue-500/50';
+          ? 'bg-amber-200 text-amber-800 border border-amber-400 dark:bg-amber-700/60 dark:text-amber-200 dark:border-amber-500/50'
+          : 'bg-blue-200 text-blue-800 border border-blue-400 dark:bg-blue-700/60 dark:text-blue-200 dark:border-blue-500/50';
       return (
         <span key={i} className={`${cls} rounded px-1 py-px text-xs`}>
           {part}
@@ -373,8 +373,8 @@ function DiffPanels({ versionA, versionB }: { versionA: PromptVersion; versionB:
   function renderLines(lines: { text: string; type: string }[]) {
     return lines.map((line, i) => {
       let bg = '';
-      if (line.type === 'removed') bg = 'bg-red-900/40';
-      if (line.type === 'added') bg = 'bg-emerald-900/40';
+      if (line.type === 'removed') bg = 'bg-red-100 dark:bg-red-900/40';
+      if (line.type === 'added') bg = 'bg-emerald-100 dark:bg-emerald-900/40';
       return (
         <div key={i} className={`${bg} px-1 min-h-[1.4em]`}>
           {line.text || '\u00A0'}
@@ -389,7 +389,7 @@ function DiffPanels({ versionA, versionB }: { versionA: PromptVersion; versionB:
         <div className="rounded-t-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">
           {versionA.name} ({versionA.status})
         </div>
-        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-auto rounded-b-lg border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-slate-200 font-mono whitespace-pre-wrap">
+        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-auto rounded-b-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 font-mono whitespace-pre-wrap dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {renderLines(linesA)}
         </div>
       </div>
@@ -397,7 +397,7 @@ function DiffPanels({ versionA, versionB }: { versionA: PromptVersion; versionB:
         <div className="rounded-t-lg bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-white">
           {versionB.name} ({versionB.status})
         </div>
-        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-auto rounded-b-lg border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-slate-200 font-mono whitespace-pre-wrap">
+        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-auto rounded-b-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 font-mono whitespace-pre-wrap dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {renderLines(linesB)}
         </div>
       </div>
@@ -1096,22 +1096,22 @@ export const PromptManagementPage = () => {
                       <div className="relative w-full h-full min-h-[300px]">
                         <div
                           aria-hidden
-                          className="absolute inset-0 rounded-lg bg-slate-800 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-auto pointer-events-none border-2 border-transparent"
+                          className="absolute inset-0 rounded-lg bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-auto pointer-events-none border-2 border-transparent"
                         >
                           {highlightVariables(editContent, selectedVersion.prompt_type)}
                         </div>
                         <textarea
                           value={editContent}
                           onChange={(e) => handleContentChange(e.target.value)}
-                          className="relative w-full h-full min-h-[300px] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none caret-slate-200 border-2 border-blue-500 focus:border-blue-400"
-                          style={{ caretColor: '#e2e8f0' }}
+                          className="relative w-full h-full min-h-[300px] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none border-2 border-blue-500 focus:border-blue-400"
+                          style={{ caretColor: 'currentColor' }}
                           spellCheck={false}
                         />
                       </div>
                     ) : (
                       /* Read-only: just the highlighted div */
                       <div
-                        className="w-full h-full min-h-[300px] rounded-lg bg-slate-800 px-4 py-3 text-sm text-slate-200 font-mono whitespace-pre-wrap break-words overflow-auto border border-slate-700"
+                        className="w-full h-full min-h-[300px] rounded-lg bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-auto border border-slate-200 dark:border-slate-700"
                       >
                         {highlightVariables(editContent, selectedVersion.prompt_type)}
                       </div>
