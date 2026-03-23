@@ -1103,8 +1103,7 @@ export const PromptManagementPage = () => {
                         <textarea
                           value={editContent}
                           onChange={(e) => handleContentChange(e.target.value)}
-                          className="relative w-full h-full min-h-[300px] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none border-2 border-blue-500 focus:border-blue-400"
-                          style={{ caretColor: 'currentColor' }}
+                          className="relative w-full h-full min-h-[300px] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none border-2 border-blue-500 focus:border-blue-400 caret-slate-900 dark:caret-slate-100"
                           spellCheck={false}
                         />
                       </div>
