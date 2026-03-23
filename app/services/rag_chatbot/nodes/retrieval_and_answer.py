@@ -3,7 +3,8 @@
 from __future__ import annotations
 from typing import Dict, Any
 from langchain_core.messages import AIMessage, HumanMessage
-from app.services.rag_chatbot.utils import get_message_content, create_llm, extract_llm_token_usage
+from app.services.rag_chatbot.utils import get_message_content, create_llm, extract_llm_token_usage, sanitize_response_language
+from app.services.rag_chatbot.prompt_resolver import resolve_prompt
 import json
 import logging
 import re
@@ -75,7 +76,11 @@ Return ONLY valid JSON, no other text:
         category_words = ticket_data["category"].split()
         if len(category_words) > 3:
             ticket_data["category"] = " ".join(category_words[:3])
-        
+
+        for key in ("category", "title", "description"):
+            if key in ticket_data:
+                ticket_data[key] = sanitize_response_language(ticket_data[key])
+
         ticket_json = json.dumps(ticket_data, ensure_ascii=False)
         
         # Update state with ticket
@@ -129,7 +134,12 @@ def capability_explanation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         for msg in messages[-4:]
     ])
 
-    prompt = f"""Based on the conversation below, generate a capability explanation message for a ZebraCRM customer support bot.
+    is_test = state.get("is_test", False)
+    db_prompt = resolve_prompt("capability_explanation", is_test_session=is_test)
+    if db_prompt is not None:
+        prompt = db_prompt.format(conversation_text=conversation_text)
+    else:
+        prompt = f"""Based on the conversation below, generate a capability explanation message for a ZebraCRM customer support bot.
 
 Conversation:
 {conversation_text}
@@ -148,7 +158,7 @@ Keep it concise with bullet points. Return ONLY the message text."""
 
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
-        capability_message = response.content.strip()
+        capability_message = sanitize_response_language(response.content.strip())
 
         # Accumulate token usage
         sent, received = extract_llm_token_usage(response)

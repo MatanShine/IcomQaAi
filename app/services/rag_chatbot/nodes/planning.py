@@ -13,7 +13,9 @@ from app.services.rag_chatbot.utils import (
     get_message_content,
     create_llm,
     extract_llm_token_usage,
+    sanitize_response_language,
 )
+from app.services.rag_chatbot.prompt_resolver import resolve_prompt
 import json
 import logging
 import re
@@ -121,27 +123,39 @@ def _get_shared_retriever(logger: logging.Logger, db_session=None) -> BM25Retrie
     return _shared_retriever
 
 
-def _is_question_related_to_zebracrm(user_message: str, bm25_results: List[str]) -> bool:
+def _build_kb_context_text(bm25_raw_contexts: dict) -> str:
+    """Build deduplicated Knowledge Base Context section from raw contexts."""
+    if not bm25_raw_contexts:
+        return "Knowledge Base Context: None yet"
+    parts = []
+    for i, (idx, value) in enumerate(bm25_raw_contexts.items(), 1):
+        q, a = value[0], value[1]
+        parts.append(f"<context_{i}>\nQuestion: {q}\nAnswer: {a}\n</context_{i}>")
+    return f"Knowledge Base Context ({len(bm25_raw_contexts)} unique results):\n" + chr(10).join(parts)
+
+
+def _build_prev_queries_text(bm25_queries: list) -> str:
+    """Build Previous search queries section."""
+    if not bm25_queries:
+        return ""
+    queries_list = chr(10).join(f'  {i+1}. "{q}"' for i, q in enumerate(bm25_queries))
+    return f"\nPrevious search queries (use DIFFERENT terms and angles, do NOT rearrange the same words):\n{queries_list}"
+
+
+def _is_question_related_to_zebracrm(user_message: str, bm25_raw_contexts: dict) -> bool:
     """Check if a question is related to ZebraCRM.
-    
+
     Args:
         user_message: The user's question
-        bm25_results: List of BM25 search results (formatted as <data_N>...</data_N>)
-    
+        bm25_raw_contexts: Raw retrieval context dict {str(id): [question, answer, url]}
+
     Returns:
         True if the question is related to ZebraCRM, False otherwise
     """
     user_lower = user_message.lower()
-    
-    # Check if BM25 search returned relevant results (not just "No results found")
-    has_relevant_results = False
-    if bm25_results:
-        for result in bm25_results:
-            if result and "<data_1>No results found</data_1>" not in result:
-                # Check if any result contains actual content
-                if any(f"<data_{i}>" in result and "</data_{i}>" in result for i in range(1, 6)):
-                    has_relevant_results = True
-                    break
+
+    # Check if BM25 search returned relevant results
+    has_relevant_results = bool(bm25_raw_contexts)
     
     # Check if question explicitly mentions ZebraCRM/CRM/system-related terms
     crm_keywords = [
@@ -177,7 +191,7 @@ def think_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Single controller node that uses GPT-5 tool calling to decide actions.
     
     Tools:
-    - bm25: Search knowledge base (max 5 times per user input)
+    - bm25: Search knowledge base (until 25 unique contexts accumulated)
     - mcq: Ask multiple choice question (max 1 time per user input)
     - final_answer: Provide final answer to user (max 1 time per user input)
     - capability_explanation: Explain capabilities and route to ticket (max 1 time per user input)
@@ -186,7 +200,7 @@ def think_node(state: Dict[str, Any]) -> Dict[str, Any]:
     messages: List[Any] = state.get("history", [])
     # Use setdefault to initialize and get in one operation
     tool_counts: Dict[str, int] = state.setdefault("tool_counts", {"bm25": 0, "mcq": 0, "final_answer": 0, "capability_explanation": 0})
-    bm25_results: List[str] = state.setdefault("bm25_results", [])
+    bm25_queries: List[str] = state.setdefault("bm25_queries", [])
     bm25_raw_contexts: Dict = state.setdefault("bm25_raw_contexts", {})
     total_tokens_sent: int = state.get("total_tokens_sent", 0)
     total_tokens_received: int = state.get("total_tokens_received", 0)
@@ -209,12 +223,23 @@ Available Questions in Knowledge Base ({len(question_titles)} total):
 """
     
     # Build system prompt
-    system_prompt = f"""You are a customer support assistant for ZebraCRM.
+    is_test = state.get("is_test", False)
+    db_prompt = resolve_prompt("system_prompt", is_test_session=is_test)
+    if db_prompt is not None:
+        system_prompt = db_prompt.format(
+            question_titles_text=question_titles_text,
+            kb_context=_build_kb_context_text(bm25_raw_contexts),
+            previous_queries=_build_prev_queries_text(bm25_queries),
+            tool_usage_counts=f"bm25_calls={tool_counts.get('bm25', 0)} (unique_contexts={len(bm25_raw_contexts)}/25), mcq={tool_counts.get('mcq', 0)}/1, final_answer={tool_counts.get('final_answer', 0)}/1, capability_explanation={tool_counts.get('capability_explanation', 0)}/1",
+            tool_limits="bm25_tool: maximum 25 unique contexts. mcq_tool: maximum 1 time. final_answer_tool: maximum 1 time. capability_explanation_tool: maximum 1 time. build_ticket_tool: ALWAYS available, maximum 1 time per user input.",
+        )
+    else:
+        system_prompt = f"""You are a customer support assistant for ZebraCRM.
 
 LANGUAGE RULE (HIGHEST PRIORITY): You MUST respond in the SAME language as the user's message. If the user writes in Hebrew, respond in Hebrew. If in English, respond in English. Match the user's language exactly. This applies to ALL your outputs: final answers, MCQ questions, ticket fields, and any other text you generate. Even if the knowledge base content is in a different language, YOUR response must match the USER's language.
 
 CRITICAL SCOPE DEFINITION:
-You ONLY answer questions about ZebraCRM (the CRM system, its features, troubleshooting, support, and how to use ZebraCRM for business operations). 
+You ONLY answer questions about ZebraCRM (the CRM system, its features, troubleshooting, support, and how to use ZebraCRM for business operations).
 
 You MUST use capability_explanation_tool for questions that are:
 - Completely unrelated to ZebraCRM (e.g., weather, cooking, unrelated products, general knowledge)
@@ -231,7 +256,7 @@ If the question is unrelated to ZebraCRM, you MUST use capability_explanation_to
 {question_titles_text}
 
 You have access to the following tools:
-1. bm25_tool: Search the knowledge base with a query. Returns up to 5 results formatted as <data_1>...</data_1>...<data_5>...</data_5>
+1. bm25_tool: Search the knowledge base with a query. Returns up to 5 results formatted as <data_1>...</data_1>...<data_5>...</data_5>. IMPORTANT: Always write standalone, self-contained search queries that include relevant context from the conversation. Do not use pronouns or references to prior messages — each query must make sense on its own.
 2. mcq_tool: Ask a multiple choice question to clarify user needs. IMPORTANT: Before using this tool, you MUST first search the knowledge base using bm25_tool. Then provide a 'question' and 'answers' (2-3 options based on search results). Question and answers must be coherent.
 3. final_answer_tool: Provide the final answer to the user's question. ONLY use this for ZebraCRM-related questions that you can answer.
 4. capability_explanation_tool: Explain what you can and cannot do. Use this for questions completely unrelated to ZebraCRM. You MUST use this tool when the question is not about ZebraCRM.
@@ -240,18 +265,19 @@ You have access to the following tools:
 IMPORTANT: When the user explicitly asks to open a ticket (e.g., "פנייה", "לפתוח פנייה", "אפשר פנייה"), you MUST use build_ticket_tool immediately. Do NOT use final_answer_tool for ticket requests.
 
 Tool limits per user input:
-- bm25_tool: maximum 5 times
+- bm25_tool: maximum 25 unique contexts. Use as FEW searches as possible — only search again if prior results are insufficient to answer confidently.
 - mcq_tool: maximum 1 time
 - final_answer_tool: maximum 1 time
 - capability_explanation_tool: maximum 1 time
 - build_ticket_tool: ALWAYS available (not counted in tool limits), maximum 1 time per user input
 
-Current tool usage: bm25={tool_counts.get("bm25", 0)}/5, mcq={tool_counts.get("mcq", 0)}/1, final_answer={tool_counts.get("final_answer", 0)}/1, capability_explanation={tool_counts.get("capability_explanation", 0)}/1
+Current tool usage: bm25_calls={tool_counts.get("bm25", 0)} (unique_contexts={len(bm25_raw_contexts)}/25), mcq={tool_counts.get("mcq", 0)}/1, final_answer={tool_counts.get("final_answer", 0)}/1, capability_explanation={tool_counts.get("capability_explanation", 0)}/1
 
 Note: build_ticket_tool and final_answer_tool are always available regardless of other tool limits.
 
-BM25 Results so far:
-{chr(10).join(bm25_results) if bm25_results else "None yet"}
+{_build_kb_context_text(bm25_raw_contexts)}
+{_build_prev_queries_text(bm25_queries)}
+You may call bm25_tool multiple times but PREFER fewer calls. If the first search gives a good answer, use final_answer_tool immediately. Only search again when the user's question spans different topics or the initial results don't cover all aspects of the question.
 
 Use tools strategically to gather information before providing a final answer. If after searching you determine the question is unrelated to ZebraCRM, use capability_explanation_tool."""
 
@@ -280,7 +306,7 @@ Use tools strategically to gather information before providing a final answer. I
         """Search the knowledge base with a query. Returns formatted results and raw contexts."""
         retriever = _get_shared_retriever(logger)
         try:
-            contexts = retriever.retrieve_contexts(query, history=[])
+            contexts = retriever.retrieve_contexts(query)
         except (AttributeError, ValueError) as e:
             logger.warning(f"bm25_tool: Retriever error: {e}")
             contexts = {}
@@ -388,7 +414,11 @@ Return ONLY valid JSON, no other text:
             category_words = ticket_data["category"].split()
             if len(category_words) > 3:
                 ticket_data["category"] = " ".join(category_words[:3])
-            
+
+            for key in ("category", "title", "description"):
+                if key in ticket_data:
+                    ticket_data[key] = sanitize_response_language(ticket_data[key])
+
             return json.dumps(ticket_data, ensure_ascii=False)
         except Exception as e:
             logger.error(f"build_ticket_tool error: {e}", exc_info=True)
@@ -432,8 +462,8 @@ Return ONLY valid JSON, no other text:
         ),
     ]
     
-    # Bind tools to LLM
-    llm_with_tools = llm.bind_tools(tools)
+    # Bind tools to LLM (parallel_tool_calls allows multiple tool calls per response)
+    llm_with_tools = llm.bind_tools(tools, parallel_tool_calls=True)
     
     # Prepare messages for LLM (include system prompt as first message)
     llm_messages = [HumanMessage(content=system_prompt)] + messages
@@ -451,212 +481,208 @@ Return ONLY valid JSON, no other text:
 
         # Check if LLM wants to call a tool
         if hasattr(response, 'tool_calls') and response.tool_calls:
-            tool_call = response.tool_calls[0]  # Handle first tool call
-            tool_name = tool_call.get("name") or tool_call.get("function", {}).get("name", "")
-            tool_args_raw = tool_call.get("args") or tool_call.get("function", {}).get("arguments", "{}")
-            
-            # Parse tool args if string
-            if isinstance(tool_args_raw, str):
-                try:
-                    tool_args = json.loads(tool_args_raw)
-                except json.JSONDecodeError as e:
-                    logger.warning(f"think_node: Failed to parse tool args JSON: {e}, using empty dict")
-                    tool_args = {}
-            else:
-                tool_args = tool_args_raw or {}
-            
-            # Enforce tool limits
-            if tool_name == "bm25_tool" and tool_counts.get("bm25", 0) >= 5:
-                logger.warning("bm25_tool limit reached (5)")
-                # Check if question is related before forcing final_answer
-                if not _is_question_related_to_zebracrm(user_message, bm25_results):
-                    logger.warning("bm25_tool limit reached but question is unrelated, using capability_explanation_tool")
-                    if tool_counts.get("capability_explanation", 0) < 1:
-                        tool_name = "capability_explanation_tool"
-                        tool_args = {}
-                    else:
-                        # Already used capability_explanation, provide fallback message in Hebrew
-                        tool_name = "final_answer_tool"
-                        tool_args = {"answer": "I can only help with ZebraCRM-related questions. Please ask me about ZebraCRM features, troubleshooting, or support."}
+            # --- Parse all tool calls and categorize them ---
+            def _parse_tool_call(tc):
+                name = tc.get("name") or tc.get("function", {}).get("name", "")
+                args_raw = tc.get("args") or tc.get("function", {}).get("arguments", "{}")
+                if isinstance(args_raw, str):
+                    try:
+                        args = json.loads(args_raw)
+                    except json.JSONDecodeError:
+                        args = {}
                 else:
-                    tool_name = "final_answer_tool"
-                    tool_args = {"answer": "I've searched extensively but couldn't find specific information. Could you provide more details or rephrase your question?"}
-            elif tool_name == "mcq_tool" and tool_counts.get("mcq", 0) >= 1:
-                logger.warning("mcq_tool limit reached (1), forcing final_answer")
-                tool_name = "final_answer_tool"
-                tool_args = {"answer": "Based on the information I have, let me provide you with an answer."}
-            elif tool_name == "final_answer_tool" and tool_counts.get("final_answer", 0) >= 1:
-                logger.warning("final_answer_tool already used, ending")
-                state["thinking_process"] = "__end__"
-                return state
-            elif tool_name == "capability_explanation_tool" and tool_counts.get("capability_explanation", 0) >= 1:
-                logger.warning("capability_explanation_tool already used, forcing final_answer")
-                tool_name = "final_answer_tool"
-                tool_args = {"answer": "I've already explained my capabilities. How can I help you with ZebraCRM?"}
-            elif tool_name == "build_ticket_tool":
-                # Check if build_ticket was already used by checking history for ticket output
-                # build_ticket is not in tool_counts, so we check differently
-                if state.get("output_type") == "ticket":
-                    logger.warning("build_ticket_tool already used, forcing final_answer")
-                    tool_name = "final_answer_tool"
-                    tool_args = {"answer": "I've already created a support ticket for you. Is there anything else I can help with?"}
-            
-            # Execute tool
-            if tool_name == "bm25_tool":
-                query = tool_args.get("query", "")
-                logger.info(f"think_node: Calling bm25_tool with query: {query}")
-                
-                # Call the tool function
-                result_text, raw_contexts = bm25_tool_func(query)
-                # Merge raw contexts for DB storage (keyed by passage index, deduplicates across calls)
-                for key, value in raw_contexts.items():
-                    bm25_raw_contexts[str(key)] = list(value)
+                    args = args_raw or {}
+                return name, args
+
+            bm25_calls = []  # list of (tool_call, query)
+            terminal_call = None  # (tool_call, name, args) — first non-bm25 tool
+            for tc in response.tool_calls:
+                name, args = _parse_tool_call(tc)
+                if name == "bm25_tool":
+                    bm25_calls.append((tc, args.get("query", "")))
+                elif terminal_call is None:
+                    terminal_call = (tc, name, args)
+
+            # --- BM25 calls present: execute them, discard terminal tools, loop back ---
+            if bm25_calls:
+                max_unique_contexts = 25
+                tool_messages = []
+                executed_any = False
+                # Collect all raw contexts from this batch for deduplication
+                batch_raw_contexts: dict[int, tuple] = {}
+
+                for tc, query in bm25_calls:
+                    tc_id = tc.get("id") or f"call_bm25_{len(messages)}_{len(tool_messages)}"
+                    if len(bm25_raw_contexts) + len(batch_raw_contexts) >= max_unique_contexts:
+                        # Context limit reached — still provide a ToolMessage so the protocol is satisfied
+                        tool_messages.append(ToolMessage(
+                            content=f"BM25 context limit reached ({len(bm25_raw_contexts) + len(batch_raw_contexts)}/{max_unique_contexts} unique contexts)",
+                            tool_call_id=tc_id,
+                        ))
+                        logger.warning(f"think_node: BM25 context limit reached ({len(bm25_raw_contexts) + len(batch_raw_contexts)}/{max_unique_contexts}), skipping query: {query}")
+                        continue
+
+                    logger.info(f"think_node: Calling bm25_tool with query: {query}")
+                    result_text, raw_contexts = bm25_tool_func(query)
+                    # Merge into batch (int keys from retriever)
+                    for idx, value in raw_contexts.items():
+                        batch_raw_contexts[idx] = value
+
+                    # Create COMPACT ToolMessage (full content goes to bm25_raw_contexts only)
+                    titles = [ctx[0] for ctx in raw_contexts.values()]
+                    compact_content = f'Search: "{query}"\nFound {len(titles)} results: {", ".join(titles)}'
+                    tool_messages.append(ToolMessage(content=compact_content, tool_call_id=tc_id))
+
+                    # Track query
+                    bm25_queries.append(query)
+                    tool_counts["bm25"] = tool_counts.get("bm25", 0) + 1
+                    executed_any = True
+
+                # Deduplicate and merge into state (use str keys to match existing convention)
+                for idx, value in batch_raw_contexts.items():
+                    bm25_raw_contexts[str(idx)] = list(value)
                 state["bm25_raw_contexts"] = bm25_raw_contexts
-                bm25_results.append(result_text)
-                
-                # Update state
-                tool_counts["bm25"] = tool_counts.get("bm25", 0) + 1
+
                 state["tool_counts"] = tool_counts
-                state["bm25_results"] = bm25_results
+                state["bm25_queries"] = bm25_queries
                 state["output"] = "tool: bm25"
                 state["output_type"] = "tool"
-                
-                # Early detection: After first BM25 search, check if question is unrelated
-                # If first search returned no results and question doesn't mention CRM terms, use capability_explanation
-                if tool_counts["bm25"] == 1:  # First search
-                    if "<data_1>No results found</data_1>" in result_text:
-                        # No results found - check if question is clearly unrelated
-                        if not _is_question_related_to_zebracrm(user_message, bm25_results):
-                            logger.info("think_node: Early detection - first BM25 search found no results and question appears unrelated, using capability_explanation_tool")
-                            if tool_counts.get("capability_explanation", 0) < 1:
-                                # Use capability_explanation_tool
-                                tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
-                                state["tool_counts"] = tool_counts
-                                state["output"] = "tool: capability_explanation"
-                                state["output_type"] = "tool"
-                                state["thinking_process"] = "capability_explanation_node"
-                                
-                                # Add tool message to history
-                                tool_call_id = tool_call.get("id") or f"call_{tool_name}_{len(messages)}"
-                                tool_message = ToolMessage(
-                                    content=result_text,
-                                    tool_call_id=tool_call_id
-                                )
-                                state["history"] = messages + [response, tool_message]
-                                
-                                logger.info(f"think_node: Early detection triggered - routing to capability_explanation_node")
-                                return state
-                
-                state["thinking_process"] = "think_node"  # Loop back
-                
-                # Add tool message to history for next iteration
-                tool_call_id = tool_call.get("id") or f"call_{tool_name}_{len(messages)}"
-                tool_message = ToolMessage(
-                    content=result_text,
-                    tool_call_id=tool_call_id
-                )
-                state["history"] = messages + [response, tool_message]
-                
-                logger.info(f"think_node: Updated state - thinking_process={state.get('thinking_process')}, output_type={state.get('output_type')}, bm25_count={tool_counts['bm25']}")
-                
-            elif tool_name == "mcq_tool":
-                question = tool_args.get("question", "")
-                answers_from_llm = tool_args.get("answers", [])
-                logger.info(f"think_node: Calling mcq_tool with question: {question}, answers: {answers_from_llm}")
 
-                # Call the tool function with LLM-provided answers
-                mcq_text = mcq_tool_func(question, answers_from_llm)
-                
-                # Extract answers from the mcq_text for state storage
-                answers_match = re.search(r'<answers>(.*?)</answers>', mcq_text)
-                if answers_match:
-                    try:
-                        answers = json.loads(answers_match.group(1))
-                        # Limit to maximum 3 answers (safeguard in case more are generated)
-                        answers = answers[:3]
-                    except json.JSONDecodeError:
-                        answers = []
-                else:
-                    answers = []
-                
-                # Update state
-                tool_counts["mcq"] = tool_counts.get("mcq", 0) + 1
-                state["tool_counts"] = tool_counts
-                state["mcq_question"] = question
-                state["mcq_answers"] = answers
-                state["output"] = mcq_text
-                state["output_type"] = "mcq"
-                state["thinking_process"] = "mcq_checkpoint"  # Route to checkpoint
-                
-                # Add AI message to history
-                state["history"] = messages + [AIMessage(content=mcq_text)]
-                
-            elif tool_name == "final_answer_tool":
-                answer = tool_args.get("answer", "")
-                logger.info(f"think_node: Calling final_answer_tool with answer length: {len(answer)}")
-                
-                # Validate that the question is related to ZebraCRM before allowing final_answer
-                if not _is_question_related_to_zebracrm(user_message, bm25_results):
-                    logger.warning("think_node: Question appears unrelated to ZebraCRM, forcing capability_explanation_tool instead of final_answer_tool")
-                    # Force capability_explanation_tool instead
-                    if tool_counts.get("capability_explanation", 0) >= 1:
-                        # Already used, but we'll still prevent final_answer
-                        logger.warning("capability_explanation_tool already used, but preventing unrelated final_answer")
-                        state["output"] = "אני יכול לעזור רק בשאלות הקשורות לזברה. אנא שאל אותי על תכונות זברה, פתרון בעיות או תמיכה."
-                        state["output_type"] = "text"
-                        state["thinking_process"] = "__end__"
-                        state["history"] = messages + [AIMessage(content=state["output"])]
-                        return state
+                # Early detection: if first-ever BM25 search(es) all returned nothing and question is unrelated
+                if not batch_raw_contexts and not bm25_raw_contexts:
+                    if not _is_question_related_to_zebracrm(user_message, bm25_raw_contexts):
+                        logger.info("think_node: Early detection - BM25 searches found no results and question appears unrelated")
+                        if tool_counts.get("capability_explanation", 0) < 1:
+                            tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
+                            state["tool_counts"] = tool_counts
+                            state["output"] = "tool: capability_explanation"
+                            state["output_type"] = "tool"
+                            state["thinking_process"] = "capability_explanation_node"
+                            state["history"] = messages + [response] + tool_messages
+                            return state
+
+                # Edge case: all BM25 calls were rejected (context limit reached) and no results executed
+                if not executed_any:
+                    logger.warning("think_node: All BM25 calls rejected (limit reached), forcing fallback")
+                    if not _is_question_related_to_zebracrm(user_message, bm25_raw_contexts):
+                        if tool_counts.get("capability_explanation", 0) < 1:
+                            tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
+                            state["tool_counts"] = tool_counts
+                            state["output"] = "tool: capability_explanation"
+                            state["output_type"] = "tool"
+                            state["thinking_process"] = "capability_explanation_node"
+                            state["history"] = messages + [response] + tool_messages
+                            return state
+                    # Force final answer fallback
+                    state["output"] = "I've searched extensively but couldn't find specific information. Could you provide more details or rephrase your question?"
+                    state["output_type"] = "text"
+                    state["thinking_process"] = "__end__"
+                    state["history"] = messages + [response] + tool_messages + [AIMessage(content=state["output"])]
+                    return state
+
+                state["thinking_process"] = "think_node"  # Loop back
+                # History: AIMessage (with all tool_calls) + one ToolMessage per call
+                state["history"] = messages + [response] + tool_messages
+                logger.info(f"think_node: Executed {len([m for m in tool_messages if 'limit reached' not in m.content])} BM25 searches, {len(batch_raw_contexts)} new passages, total_unique={len(bm25_raw_contexts)}, bm25_calls={tool_counts['bm25']}")
+
+            # --- No BM25 calls: execute the single terminal tool ---
+            elif terminal_call is not None:
+                tool_call, tool_name, tool_args = terminal_call
+
+                # Enforce tool limits (same logic as before)
+                if tool_name == "mcq_tool" and tool_counts.get("mcq", 0) >= 1:
+                    logger.warning("mcq_tool limit reached (1), forcing final_answer")
+                    tool_name = "final_answer_tool"
+                    tool_args = {"answer": "Based on the information I have, let me provide you with an answer."}
+                elif tool_name == "final_answer_tool" and tool_counts.get("final_answer", 0) >= 1:
+                    logger.warning("final_answer_tool already used, ending")
+                    state["thinking_process"] = "__end__"
+                    return state
+                elif tool_name == "capability_explanation_tool" and tool_counts.get("capability_explanation", 0) >= 1:
+                    logger.warning("capability_explanation_tool already used, forcing final_answer")
+                    tool_name = "final_answer_tool"
+                    tool_args = {"answer": "I've already explained my capabilities. How can I help you with ZebraCRM?"}
+                elif tool_name == "build_ticket_tool":
+                    if state.get("output_type") == "ticket":
+                        logger.warning("build_ticket_tool already used, forcing final_answer")
+                        tool_name = "final_answer_tool"
+                        tool_args = {"answer": "I've already created a support ticket for you. Is there anything else I can help with?"}
+
+                # Execute the terminal tool
+                if tool_name == "mcq_tool":
+                    question = tool_args.get("question", "")
+                    answers_from_llm = tool_args.get("answers", [])
+                    logger.info(f"think_node: Calling mcq_tool with question: {question}, answers: {answers_from_llm}")
+
+                    mcq_text = mcq_tool_func(question, answers_from_llm)
+
+                    answers_match = re.search(r'<answers>(.*?)</answers>', mcq_text)
+                    if answers_match:
+                        try:
+                            answers = json.loads(answers_match.group(1))
+                            answers = answers[:3]
+                        except json.JSONDecodeError:
+                            answers = []
                     else:
-                        # Use capability_explanation_tool
-                        tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
-                        state["tool_counts"] = tool_counts
-                        state["output"] = "tool: capability_explanation"
-                        state["output_type"] = "tool"
-                        state["thinking_process"] = "capability_explanation_node"
-                        return state
-                
-                # Call the tool function
-                final_answer_text = final_answer_tool_func(answer)
-                
-                # Update state
-                tool_counts["final_answer"] = tool_counts.get("final_answer", 0) + 1
-                state["tool_counts"] = tool_counts
-                state["output"] = final_answer_text
-                state["output_type"] = "text"
-                state["thinking_process"] = "__end__"
-                
-                # Add AI message to history
-                state["history"] = messages + [AIMessage(content=final_answer_text)]
-                
-            elif tool_name == "capability_explanation_tool":
-                logger.info("think_node: Calling capability_explanation_tool")
-                
-                # Call the tool function
-                capability_explanation_tool_func()
-                
-                # Update state
-                tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
-                state["tool_counts"] = tool_counts
-                state["output"] = "tool: capability_explanation"
-                state["output_type"] = "tool"
-                state["thinking_process"] = "capability_explanation_node"  # Route to capability node
-                
-            elif tool_name == "build_ticket_tool":
-                logger.info("think_node: Calling build_ticket_tool")
-                
-                # Call the tool function
-                ticket_json = build_ticket_tool_func()
-                
-                # Update state (build_ticket is not tracked in tool_counts)
-                state["tool_counts"] = tool_counts
-                state["output"] = ticket_json
-                state["output_type"] = "ticket"
-                state["thinking_process"] = "__end__"
-                
-                # Add AI message to history with full ticket details
-                state["history"] = messages + [AIMessage(content=f"Support ticket created: {ticket_json}")]
-                
+                        answers = []
+
+                    tool_counts["mcq"] = tool_counts.get("mcq", 0) + 1
+                    state["tool_counts"] = tool_counts
+                    state["mcq_question"] = question
+                    state["mcq_answers"] = answers
+                    state["output"] = mcq_text
+                    state["output_type"] = "mcq"
+                    state["thinking_process"] = "mcq_checkpoint"
+                    state["history"] = messages + [AIMessage(content=mcq_text)]
+
+                elif tool_name == "final_answer_tool":
+                    answer = tool_args.get("answer", "")
+                    logger.info(f"think_node: Calling final_answer_tool with answer length: {len(answer)}")
+
+                    # Validate question is related to ZebraCRM
+                    if not _is_question_related_to_zebracrm(user_message, bm25_raw_contexts):
+                        logger.warning("think_node: Question appears unrelated to ZebraCRM, forcing capability_explanation_tool")
+                        if tool_counts.get("capability_explanation", 0) >= 1:
+                            logger.warning("capability_explanation_tool already used, but preventing unrelated final_answer")
+                            state["output"] = "אני יכול לעזור רק בשאלות הקשורות לזברה. אנא שאל אותי על תכונות זברה, פתרון בעיות או תמיכה."
+                            state["output_type"] = "text"
+                            state["thinking_process"] = "__end__"
+                            state["history"] = messages + [AIMessage(content=state["output"])]
+                            return state
+                        else:
+                            tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
+                            state["tool_counts"] = tool_counts
+                            state["output"] = "tool: capability_explanation"
+                            state["output_type"] = "tool"
+                            state["thinking_process"] = "capability_explanation_node"
+                            return state
+
+                    final_answer_text = sanitize_response_language(final_answer_tool_func(answer))
+                    tool_counts["final_answer"] = tool_counts.get("final_answer", 0) + 1
+                    state["tool_counts"] = tool_counts
+                    state["output"] = final_answer_text
+                    state["output_type"] = "text"
+                    state["thinking_process"] = "__end__"
+                    state["history"] = messages + [AIMessage(content=final_answer_text)]
+
+                elif tool_name == "capability_explanation_tool":
+                    logger.info("think_node: Calling capability_explanation_tool")
+                    capability_explanation_tool_func()
+                    tool_counts["capability_explanation"] = tool_counts.get("capability_explanation", 0) + 1
+                    state["tool_counts"] = tool_counts
+                    state["output"] = "tool: capability_explanation"
+                    state["output_type"] = "tool"
+                    state["thinking_process"] = "capability_explanation_node"
+
+                elif tool_name == "build_ticket_tool":
+                    logger.info("think_node: Calling build_ticket_tool")
+                    ticket_json = build_ticket_tool_func()
+                    state["tool_counts"] = tool_counts
+                    state["output"] = ticket_json
+                    state["output_type"] = "ticket"
+                    state["thinking_process"] = "__end__"
+                    state["history"] = messages + [AIMessage(content=f"Support ticket created: {ticket_json}")]
+
         else:
             # No tool call - LLM provided direct answer (shouldn't happen with tools, but handle gracefully)
             logger.warning("think_node: LLM returned no tool calls, forcing final_answer")
@@ -665,7 +691,7 @@ Return ONLY valid JSON, no other text:
             state["output_type"] = "text"
             state["thinking_process"] = "__end__"
             state["history"] = messages + [response]
-            
+
     except (ValueError, KeyError, AttributeError) as e:
         # Recoverable error - state/data structure issues
         logger.warning(f"think_node: Recoverable error: {e}", exc_info=True)

@@ -112,7 +112,8 @@ class Agent:
         return metadata
 
     async def stream(
-        self, message: str, history: list[BaseMessage] = None, thread_id: str = None
+        self, message: str, history: list[BaseMessage] = None, thread_id: str = None,
+        is_test: bool = False,
     ) -> AsyncIterator[tuple[str, str]]:
         """
         Stream the agent execution, yielding (event_type, data) tuples.
@@ -227,7 +228,8 @@ class Agent:
                         run_input = {
                             "history": history,
                             "tool_counts": {"bm25": 0, "mcq": 0, "final_answer": 0, "capability_explanation": 0},
-                            "bm25_results": [],
+                            "bm25_queries": [],
+                            "is_test": is_test,
                         }
                         self.logger.info(f"Starting new run after {output_type}, tool_counts reset")
                     else:
@@ -248,7 +250,8 @@ class Agent:
             run_input = {
                 "history": history,
                 "tool_counts": {"bm25": 0, "mcq": 0, "final_answer": 0, "capability_explanation": 0},
-                "bm25_results": [],
+                "bm25_queries": [],
+                "is_test": is_test,
             }
             self.logger.info(
                 f"Starting new run with {len(history)} history messages"
@@ -263,7 +266,7 @@ class Agent:
         last_emitted_output = None
         
         # Use a while loop to handle tool call iterations
-        max_iterations = 10  # Safety limit
+        max_iterations = 15  # Safety limit
         iteration = 0
         
         while iteration < max_iterations:

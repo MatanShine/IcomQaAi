@@ -380,6 +380,7 @@ async def agent_stream(req: ChatRequest, db: Session = Depends(get_db)):
                 req.message,
                 history=history_messages,
                 thread_id=req.session_id,
+                is_test=req.is_test,
             ):
                 if event_type == "node":
                     if data == "think_node":
@@ -427,6 +428,19 @@ async def agent_stream(req: ChatRequest, db: Session = Depends(get_db)):
                     )
 
                     db.commit()
+                    # Record test session prompt assignments
+                    if req.is_test:
+                        from app.services.rag_chatbot.prompt_resolver import get_active_prompt_version_id
+                        from app.models.db import PromptTestSession
+                        for pt in ["system_prompt", "capability_explanation"]:
+                            vid = get_active_prompt_version_id(pt, is_test_session=True)
+                            if vid is not None:
+                                db.add(PromptTestSession(
+                                    session_id=req.session_id,
+                                    prompt_type=pt,
+                                    prompt_version_id=vid,
+                                ))
+                        db.commit()
                     # Send final completion message
                     yield "data: {}\n\n"
         except Exception as e:

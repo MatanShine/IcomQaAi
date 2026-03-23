@@ -14,6 +14,10 @@ class ChatRequest(BaseModel):
         default=0,
         description="Set to 1 to generate a support ticket from conversation history",
     )
+    is_test: bool = Field(
+        default=False,
+        description="Set to true when calling from Test Agent page to use testing prompt version",
+    )
 
 
 class ChatResponse(BaseModel):
