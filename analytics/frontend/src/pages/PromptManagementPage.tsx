@@ -1117,24 +1117,24 @@ export const PromptManagementPage = () => {
                     )}
                     {isEditable ? (
                       /* Editable: textarea with highlighted overlay */
-                      <div className="relative w-full h-full min-h-[300px]">
+                      <div className="relative w-full min-h-[300px] max-h-[60vh] overflow-hidden rounded-lg border-2 border-blue-500 focus-within:border-blue-400">
                         <div
                           aria-hidden
-                          className="absolute inset-0 rounded-lg bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-auto pointer-events-none border-2 border-transparent"
+                          className="absolute inset-0 bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-y-auto pointer-events-none"
                         >
                           {highlightVariables(editContent, selectedVersion.prompt_type)}
                         </div>
                         <textarea
                           value={editContent}
                           onChange={(e) => handleContentChange(e.target.value)}
-                          className="relative w-full h-full min-h-[300px] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none border-2 border-blue-500 focus:border-blue-400 caret-slate-900 dark:caret-slate-100"
+                          className="relative w-full min-h-[300px] max-h-[60vh] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none caret-slate-900 dark:caret-slate-100"
                           spellCheck={false}
                         />
                       </div>
                     ) : (
-                      /* Read-only: just the highlighted div */
+                      /* Read-only: scrollable with max height */
                       <div
-                        className="w-full h-full min-h-[300px] rounded-lg bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-auto border border-slate-200 dark:border-slate-700"
+                        className="w-full min-h-[300px] max-h-[60vh] overflow-y-auto rounded-lg bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words border border-slate-200 dark:border-slate-700"
                       >
                         {highlightVariables(editContent, selectedVersion.prompt_type)}
                       </div>
