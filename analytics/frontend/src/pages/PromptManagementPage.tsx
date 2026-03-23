@@ -37,6 +37,63 @@ function countVariableOccurrences(content: string, varName: string): number {
   return (content.match(regex) || []).length;
 }
 
+/** Render text with known {variables} highlighted as colored spans. */
+function highlightVariables(
+  text: string,
+  promptType: string,
+): React.ReactNode[] {
+  const knownVars = (PROMPT_VARIABLES[promptType] ?? []).map((v) => v.name);
+  if (knownVars.length === 0) return [text];
+
+  const pattern = new RegExp(`(\\{(?:${knownVars.join('|')})\\})`, 'g');
+  const parts = text.split(pattern);
+
+  // Count occurrences for coloring
+  const counts: Record<string, number> = {};
+  for (const name of knownVars) {
+    counts[name] = countVariableOccurrences(text, name);
+  }
+
+  return parts.map((part, i) => {
+    const match = part.match(/^\{(\w+)\}$/);
+    if (match && knownVars.includes(match[1])) {
+      const count = counts[match[1]];
+      const cls =
+        count > 1
+          ? 'bg-amber-700/60 text-amber-200 border border-amber-500/50'
+          : 'bg-blue-700/60 text-blue-200 border border-blue-500/50';
+      return (
+        <span key={i} className={`${cls} rounded px-1 py-px text-xs`}>
+          {part}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+/** Simple line-based diff: returns lines with 'same', 'added', 'removed' markers. */
+function computeLineDiff(
+  textA: string,
+  textB: string,
+): { linesA: { text: string; type: 'same' | 'removed' }[]; linesB: { text: string; type: 'same' | 'added' }[] } {
+  const a = textA.split('\n');
+  const b = textB.split('\n');
+  const setA = new Set(a);
+  const setB = new Set(b);
+
+  return {
+    linesA: a.map((line) => ({
+      text: line,
+      type: setB.has(line) ? ('same' as const) : ('removed' as const),
+    })),
+    linesB: b.map((line) => ({
+      text: line,
+      type: setA.has(line) ? ('same' as const) : ('added' as const),
+    })),
+  };
+}
+
 function relativeTime(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
@@ -305,6 +362,49 @@ function MetricsBar({ metrics }: { metrics: ComparisonMetrics | null }) {
   );
 }
 
+// ── Diff Panels ─────────────────────────────────────────────────────────────
+
+function DiffPanels({ versionA, versionB }: { versionA: PromptVersion; versionB: PromptVersion }) {
+  const { linesA, linesB } = useMemo(
+    () => computeLineDiff(versionA.content, versionB.content),
+    [versionA.content, versionB.content],
+  );
+
+  function renderLines(lines: { text: string; type: string }[]) {
+    return lines.map((line, i) => {
+      let bg = '';
+      if (line.type === 'removed') bg = 'bg-red-900/40';
+      if (line.type === 'added') bg = 'bg-emerald-900/40';
+      return (
+        <div key={i} className={`${bg} px-1 min-h-[1.4em]`}>
+          {line.text || '\u00A0'}
+        </div>
+      );
+    });
+  }
+
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-4 flex-1 min-h-0">
+      <div className="flex flex-col min-h-0">
+        <div className="rounded-t-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">
+          {versionA.name} ({versionA.status})
+        </div>
+        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-auto rounded-b-lg border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-slate-200 font-mono whitespace-pre-wrap">
+          {renderLines(linesA)}
+        </div>
+      </div>
+      <div className="flex flex-col min-h-0">
+        <div className="rounded-t-lg bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-white">
+          {versionB.name} ({versionB.status})
+        </div>
+        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-auto rounded-b-lg border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-slate-200 font-mono whitespace-pre-wrap">
+          {renderLines(linesB)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Comparison View ─────────────────────────────────────────────────────────
 
 function ComparisonView({
@@ -403,29 +503,8 @@ function ComparisonView({
         </button>
       </div>
 
-      {/* Side-by-side text panels */}
-      <div className="mt-4 grid grid-cols-2 gap-4 flex-1 min-h-0">
-        <div className="flex flex-col min-h-0">
-          <div className="rounded-t-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">
-            {versionA.name} ({versionA.status})
-          </div>
-          <textarea
-            readOnly
-            value={versionA.content}
-            className="flex-1 w-full min-h-[300px] rounded-b-lg border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-200 font-mono resize-none outline-none"
-          />
-        </div>
-        <div className="flex flex-col min-h-0">
-          <div className="rounded-t-lg bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-white">
-            {versionB.name} ({versionB.status})
-          </div>
-          <textarea
-            readOnly
-            value={versionB.content}
-            className="flex-1 w-full min-h-[300px] rounded-b-lg border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-200 font-mono resize-none outline-none"
-          />
-        </div>
-      </div>
+      {/* Side-by-side text panels with diff */}
+      <DiffPanels versionA={versionA} versionB={versionB} />
 
       {/* Metrics comparison table */}
       <div className="mt-4">
@@ -1012,16 +1091,31 @@ export const PromptManagementPage = () => {
                         read-only
                       </div>
                     )}
-                    <textarea
-                      readOnly={!isEditable}
-                      value={editContent}
-                      onChange={(e) => handleContentChange(e.target.value)}
-                      className={`w-full h-full min-h-[300px] rounded-lg bg-slate-800 px-4 py-3 text-sm text-slate-200 font-mono resize-none outline-none transition-colors ${
-                        isEditable
-                          ? 'border-2 border-blue-500 focus:border-blue-400'
-                          : 'border border-slate-700'
-                      }`}
-                    />
+                    {isEditable ? (
+                      /* Editable: textarea with highlighted overlay */
+                      <div className="relative w-full h-full min-h-[300px]">
+                        <div
+                          aria-hidden
+                          className="absolute inset-0 rounded-lg bg-slate-800 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-auto pointer-events-none border-2 border-transparent"
+                        >
+                          {highlightVariables(editContent, selectedVersion.prompt_type)}
+                        </div>
+                        <textarea
+                          value={editContent}
+                          onChange={(e) => handleContentChange(e.target.value)}
+                          className="relative w-full h-full min-h-[300px] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none caret-slate-200 border-2 border-blue-500 focus:border-blue-400"
+                          style={{ caretColor: '#e2e8f0' }}
+                          spellCheck={false}
+                        />
+                      </div>
+                    ) : (
+                      /* Read-only: just the highlighted div */
+                      <div
+                        className="w-full h-full min-h-[300px] rounded-lg bg-slate-800 px-4 py-3 text-sm text-slate-200 font-mono whitespace-pre-wrap break-words overflow-auto border border-slate-700"
+                      >
+                        {highlightVariables(editContent, selectedVersion.prompt_type)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Variable highlighting */}
