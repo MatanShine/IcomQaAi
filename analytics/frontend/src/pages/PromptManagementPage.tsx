@@ -72,24 +72,48 @@ function highlightVariables(
   });
 }
 
-/** Simple line-based diff: returns lines with 'same', 'added', 'removed' markers. */
+/** LCS-based line diff that correctly handles duplicates and ordering. */
 function computeLineDiff(
   textA: string,
   textB: string,
 ): { linesA: { text: string; type: 'same' | 'removed' }[]; linesB: { text: string; type: 'same' | 'added' }[] } {
   const a = textA.split('\n');
   const b = textB.split('\n');
-  const setA = new Set(a);
-  const setB = new Set(b);
+
+  // Build LCS table
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+
+  // Backtrack to find which lines are common
+  const matchedA = new Set<number>();
+  const matchedB = new Set<number>();
+  let i = m, j = n;
+  while (i > 0 && j > 0) {
+    if (a[i - 1] === b[j - 1]) {
+      matchedA.add(i - 1);
+      matchedB.add(j - 1);
+      i--; j--;
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      i--;
+    } else {
+      j--;
+    }
+  }
 
   return {
-    linesA: a.map((line) => ({
+    linesA: a.map((line, idx) => ({
       text: line,
-      type: setB.has(line) ? ('same' as const) : ('removed' as const),
+      type: matchedA.has(idx) ? 'same' as const : 'removed' as const,
     })),
-    linesB: b.map((line) => ({
+    linesB: b.map((line, idx) => ({
       text: line,
-      type: setA.has(line) ? ('same' as const) : ('added' as const),
+      type: matchedB.has(idx) ? 'same' as const : 'added' as const,
     })),
   };
 }
