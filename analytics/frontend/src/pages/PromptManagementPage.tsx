@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   usePromptVersions,
   useCreatePrompt,
@@ -591,6 +591,48 @@ function ComparisonView({
   );
 }
 
+// ── Editable Editor with synced scroll ───────────────────────────────────────
+
+function EditableEditor({
+  content,
+  promptType,
+  onChange,
+}: {
+  content: string;
+  promptType: string;
+  onChange: (value: string) => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback(() => {
+    if (textareaRef.current && overlayRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+      overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  }, []);
+
+  return (
+    <div className="relative w-full min-h-[300px] max-h-[60vh] rounded-lg border-2 border-blue-500 focus-within:border-blue-400">
+      <div
+        ref={overlayRef}
+        aria-hidden
+        className="absolute inset-0 bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-hidden pointer-events-none"
+      >
+        {highlightVariables(content, promptType)}
+      </div>
+      <textarea
+        ref={textareaRef}
+        value={content}
+        onChange={(e) => onChange(e.target.value)}
+        onScroll={handleScroll}
+        className="relative w-full min-h-[300px] max-h-[60vh] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none caret-slate-900 dark:caret-slate-100"
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 
 export const PromptManagementPage = () => {
@@ -1116,21 +1158,11 @@ export const PromptManagementPage = () => {
                       </div>
                     )}
                     {isEditable ? (
-                      /* Editable: textarea with highlighted overlay */
-                      <div className="relative w-full min-h-[300px] max-h-[60vh] overflow-hidden rounded-lg border-2 border-blue-500 focus-within:border-blue-400">
-                        <div
-                          aria-hidden
-                          className="absolute inset-0 bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-200 px-4 py-3 text-sm font-mono whitespace-pre-wrap break-words overflow-y-auto pointer-events-none"
-                        >
-                          {highlightVariables(editContent, selectedVersion.prompt_type)}
-                        </div>
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => handleContentChange(e.target.value)}
-                          className="relative w-full min-h-[300px] max-h-[60vh] rounded-lg bg-transparent px-4 py-3 text-sm text-transparent font-mono resize-none outline-none caret-slate-900 dark:caret-slate-100"
-                          spellCheck={false}
-                        />
-                      </div>
+                      <EditableEditor
+                        content={editContent}
+                        promptType={selectedVersion.prompt_type}
+                        onChange={handleContentChange}
+                      />
                     ) : (
                       /* Read-only: scrollable with max height */
                       <div
