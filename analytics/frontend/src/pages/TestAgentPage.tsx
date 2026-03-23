@@ -101,6 +101,7 @@ export const TestAgentPage = () => {
         body: JSON.stringify({
           message: userMessage.content,
           session_id: sessionId,
+          is_test: true,
         }),
       });
 
@@ -303,6 +304,7 @@ export const TestAgentPage = () => {
         body: JSON.stringify({
           message: answer,
           session_id: sessionId,
+          is_test: true,
         }),
       });
 
@@ -499,6 +501,7 @@ export const TestAgentPage = () => {
           message: '',
           session_id: sessionId,
           open_ticket: 1,
+          is_test: true,
         }),
       });
 
@@ -579,6 +582,7 @@ export const TestAgentPage = () => {
         body: JSON.stringify({
           message: userMessage.content,
           session_id: sessionId,
+          is_test: true,
         }),
       });
 
