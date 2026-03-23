@@ -8,8 +8,10 @@ import { metricsRouter } from './routes/metrics';
 import { commentsRouter } from './routes/comments';
 import { knowledgeBaseRouter } from './routes/knowledgeBase';
 import { agentRouter } from './routes/agent';
+import { promptsRouter } from './routes/prompts';
 import { errorHandler } from './middleware/errorHandler';
 import { validateEnv } from './env';
+import { disconnect } from './db/client';
 
 dotenv.config();
 
@@ -36,6 +38,7 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/comments', commentsRouter);
 app.use('/api/knowledge-base', knowledgeBaseRouter);
 app.use('/api/agent', agentRouter);
+app.use('/api/prompts', promptsRouter);
 
 app.use(errorHandler);
 
@@ -75,7 +78,18 @@ app.get('/api/analytics/qa', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`Analytics backend listening on port ${PORT}`);
 });
+
+// Graceful shutdown: disconnect Prisma so connections are returned to PostgreSQL
+const gracefulShutdown = async (signal: string) => {
+  console.log(`Received ${signal}, shutting down gracefully...`);
+  server.close();
+  await disconnect();
+  process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
