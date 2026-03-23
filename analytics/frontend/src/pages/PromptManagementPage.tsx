@@ -350,7 +350,7 @@ function MetricsBar({ metrics }: { metrics: ComparisonMetrics | null }) {
   if (!metrics || metrics.total_sessions === 0) {
     return (
       <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-        No metrics yet — set as testing and use Test Agent to generate data
+        No sessions recorded for this version yet
       </div>
     );
   }
@@ -1180,14 +1180,7 @@ export const PromptManagementPage = () => {
                   />
 
                   {/* Metrics bar */}
-                  {selectedVersion.status === 'draft' ? (
-                    <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-                      No metrics yet — set as testing and use Test Agent to
-                      generate data
-                    </div>
-                  ) : (
-                    <MetricsBar metrics={currentMetrics} />
-                  )}
+                  <MetricsBar metrics={currentMetrics} />
                 </div>
               </>
             ) : (
