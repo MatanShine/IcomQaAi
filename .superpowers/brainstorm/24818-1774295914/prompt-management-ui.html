@@ -1,0 +1,209 @@
+<h2>Prompt Management Page Layout</h2>
+<p class="subtitle">Single page with three sections: prompt selector, version list, and comparison dashboard</p>
+
+<div class="options">
+  <div class="option" data-choice="layout-a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Top-Down Layout</h3>
+      <p>Prompt type selector at top, then a split view: left side shows version list + editor, right side shows comparison metrics</p>
+    </div>
+  </div>
+  <div class="option" data-choice="layout-b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tab-Based Layout</h3>
+      <p>Tabs for each prompt type at the top. Below: three sub-tabs — "Versions" (list + editor), "Test" (set testing version + run in Test Agent), "Compare" (metrics dashboard)</p>
+    </div>
+  </div>
+  <div class="option" data-choice="layout-c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>List-Detail Layout</h3>
+      <p>Left sidebar lists prompt types + versions (tree view). Selecting a version opens it in a main content area with editor, status actions, and inline metrics below</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top: 2rem;">Wireframe: Option B (Recommended)</h3>
+<p class="subtitle">Tab-based layout keeps concerns separated while staying on one page</p>
+
+<div class="mockup">
+  <div class="mockup-header">Prompt Management</div>
+  <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 13px;">
+
+    <!-- Prompt Type Tabs -->
+    <div style="display: flex; border-bottom: 2px solid #e2e8f0; background: #f8fafc;">
+      <div style="padding: 10px 20px; border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: 600; margin-bottom: -2px;">System Prompt</div>
+      <div style="padding: 10px 20px; color: #64748b;">Capability Explanation</div>
+    </div>
+
+    <!-- Sub Tabs -->
+    <div style="display: flex; gap: 0; background: #fff; border-bottom: 1px solid #e2e8f0;">
+      <div style="padding: 8px 16px; font-weight: 600; color: #1e293b; border-bottom: 2px solid #3b82f6;">Versions</div>
+      <div style="padding: 8px 16px; color: #64748b;">Compare</div>
+    </div>
+
+    <!-- Versions Content -->
+    <div style="display: flex; gap: 0; min-height: 350px;">
+
+      <!-- Version List (left) -->
+      <div style="width: 260px; border-right: 1px solid #e2e8f0; background: #fafbfc;">
+        <div style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+          <button style="width: 100%; padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">+ New Version</button>
+        </div>
+
+        <!-- Version items -->
+        <div style="padding: 10px; background: #eff6ff; border-left: 3px solid #3b82f6; border-bottom: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 12px;">v3 - Concise Hebrew</strong>
+            <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 8px; font-size: 10px;">published</span>
+          </div>
+          <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Mar 20, 2026</div>
+        </div>
+
+        <div style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 12px;">v4 - Strict scope</strong>
+            <span style="background: #f59e0b; color: white; padding: 1px 6px; border-radius: 8px; font-size: 10px;">testing</span>
+          </div>
+          <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Mar 22, 2026</div>
+        </div>
+
+        <div style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 12px;">v2 - Verbose</strong>
+            <span style="background: #94a3b8; color: white; padding: 1px 6px; border-radius: 8px; font-size: 10px;">archived</span>
+          </div>
+          <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Mar 15, 2026</div>
+        </div>
+
+        <div style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 12px;">v5 - New draft</strong>
+            <span style="background: #e2e8f0; color: #64748b; padding: 1px 6px; border-radius: 8px; font-size: 10px;">draft</span>
+          </div>
+          <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Mar 23, 2026</div>
+        </div>
+      </div>
+
+      <!-- Editor (right) -->
+      <div style="flex: 1; padding: 16px; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div>
+            <input style="font-size: 16px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 8px; width: 250px;" value="v4 - Strict scope" />
+            <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 8px; font-size: 11px; margin-left: 8px;">testing</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button style="padding: 5px 12px; background: #22c55e; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Publish</button>
+            <button style="padding: 5px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Stop Test</button>
+            <button style="padding: 5px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Save</button>
+          </div>
+        </div>
+
+        <!-- Text editor area -->
+        <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 11px; line-height: 1.6; overflow-y: auto; white-space: pre-wrap;">You are a customer support assistant for ZebraCRM.
+
+LANGUAGE RULE (HIGHEST PRIORITY): You MUST respond
+in the SAME language as the user's message.
+
+CRITICAL SCOPE DEFINITION:
+You ONLY answer questions about ZebraCRM (the CRM
+system, its features, troubleshooting, support,
+and how to use ZebraCRM for business operations).
+
+{question_titles_text}
+
+You have access to the following tools:
+1. bm25_tool: Search the knowledge base...
+2. mcq_tool: Ask a multiple choice question...
+3. final_answer_tool: Provide the final answer...
+4. capability_explanation_tool: Explain what you
+   can and cannot do...
+5. build_ticket_tool: Build a support ticket...</div>
+
+        <div style="margin-top: 8px; color: #94a3b8; font-size: 10px;">
+          Template variables: <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6;">{question_titles_text}</code>
+          <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6;">{kb_context}</code>
+          <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6;">{previous_queries}</code>
+          — injected dynamically at runtime
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top: 2rem;">Wireframe: Compare Sub-Tab</h3>
+<p class="subtitle">Side-by-side metrics for published vs testing versions</p>
+
+<div class="mockup">
+  <div class="mockup-header">Prompt Management &gt; System Prompt &gt; Compare</div>
+  <div class="mockup-body" style="padding: 16px; font-family: system-ui, sans-serif; font-size: 13px;">
+
+    <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+      <!-- Published card -->
+      <div style="flex: 1; border: 2px solid #22c55e; border-radius: 8px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <strong>v3 - Concise Hebrew</strong>
+          <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 8px; font-size: 11px;">published</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="background: #f0fdf4; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #16a34a;">12.3%</div>
+            <div style="font-size: 10px; color: #64748b;">IDK Rate</div>
+          </div>
+          <div style="background: #f0fdf4; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #16a34a;">8.1%</div>
+            <div style="font-size: 10px; color: #64748b;">Escalation Rate</div>
+          </div>
+          <div style="background: #f0fdf4; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #16a34a;">45s</div>
+            <div style="font-size: 10px; color: #64748b;">Avg Duration</div>
+          </div>
+          <div style="background: #f0fdf4; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #16a34a;">2.4</div>
+            <div style="font-size: 10px; color: #64748b;">Avg Questions/Session</div>
+          </div>
+        </div>
+        <div style="margin-top: 8px; color: #94a3b8; font-size: 10px;">Based on 342 sessions</div>
+      </div>
+
+      <!-- Testing card -->
+      <div style="flex: 1; border: 2px solid #f59e0b; border-radius: 8px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <strong>v4 - Strict scope</strong>
+          <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 8px; font-size: 11px;">testing</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="background: #fffbeb; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #d97706;">9.8%</div>
+            <div style="font-size: 10px; color: #64748b;">IDK Rate</div>
+          </div>
+          <div style="background: #fffbeb; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #d97706;">5.2%</div>
+            <div style="font-size: 10px; color: #64748b;">Escalation Rate</div>
+          </div>
+          <div style="background: #fffbeb; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #d97706;">38s</div>
+            <div style="font-size: 10px; color: #64748b;">Avg Duration</div>
+          </div>
+          <div style="background: #fffbeb; padding: 8px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 20px; font-weight: 700; color: #d97706;">1.9</div>
+            <div style="font-size: 10px; color: #64748b;">Avg Questions/Session</div>
+          </div>
+        </div>
+        <div style="margin-top: 8px; color: #94a3b8; font-size: 10px;">Based on 28 test sessions</div>
+      </div>
+    </div>
+
+    <div style="background: #f8fafc; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+      <strong style="font-size: 12px;">Summary</strong>
+      <div style="margin-top: 6px; font-size: 12px; color: #475569;">
+        Testing version shows <span style="color: #16a34a; font-weight: 600;">-2.5% IDK rate</span> and
+        <span style="color: #16a34a; font-weight: 600;">-2.9% escalation rate</span> compared to published.
+        Average duration is <span style="color: #16a34a; font-weight: 600;">7s faster</span>.
+        Sample size is still small (28 sessions) — consider more testing before publishing.
+      </div>
+    </div>
+  </div>
+</div>

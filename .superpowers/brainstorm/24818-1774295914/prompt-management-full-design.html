@@ -1,0 +1,577 @@
+<h2>Prompt Management — Full Design</h2>
+<p class="subtitle">List-Detail layout with tree sidebar, editor, and shift-click diff/compare view</p>
+
+<!-- ==================== VIEW 1: Normal single-version view ==================== -->
+<h3>View 1: Single Version Selected</h3>
+<p class="subtitle">Clicking a version in the tree shows its editor and metrics</p>
+
+<div class="mockup">
+  <div class="mockup-header">Prompt Management</div>
+  <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 13px;">
+    <div style="display: flex; min-height: 420px;">
+
+      <!-- Tree sidebar -->
+      <div style="width: 240px; border-right: 1px solid #e2e8f0; background: #fafbfc; display: flex; flex-direction: column;">
+        <div style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">
+          <button style="width: 100%; padding: 6px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">+ New Version</button>
+        </div>
+
+        <!-- Tree: System Prompt -->
+        <div>
+          <div style="padding: 7px 12px; font-weight: 700; font-size: 11px; color: #1e293b; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 9px;">▼</span> System Prompt
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; background: #eff6ff; border-left: 3px solid #3b82f6; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v3 - Concise Hebrew <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">published</span>
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v4 - Strict scope <span style="background: #f59e0b; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">testing</span>
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v5 - New draft <span style="background: #e2e8f0; color: #64748b; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">draft</span>
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; color: #94a3b8; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v2 - Verbose <span style="background: #d1d5db; color: #6b7280; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">archived</span>
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; color: #94a3b8; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v1 - Initial <span style="background: #d1d5db; color: #6b7280; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">archived</span>
+          </div>
+        </div>
+
+        <!-- Tree: Capability Explanation -->
+        <div>
+          <div style="padding: 7px 12px; font-weight: 700; font-size: 11px; color: #1e293b; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 9px;">▼</span> Capability Explanation
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v1 - Default <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">published</span>
+          </div>
+          <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7; cursor: pointer;">
+            v2 - Friendly tone <span style="background: #e2e8f0; color: #64748b; padding: 0 4px; border-radius: 6px; font-size: 8px; margin-left: 2px;">draft</span>
+          </div>
+        </div>
+
+        <!-- Hint at bottom -->
+        <div style="margin-top: auto; padding: 8px 10px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 9px; line-height: 1.4;">
+          Shift+click two versions to compare
+        </div>
+      </div>
+
+      <!-- Detail panel -->
+      <div style="flex: 1; display: flex; flex-direction: column;">
+
+        <!-- Header bar -->
+        <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #94a3b8; font-size: 11px;">System Prompt</span>
+            <span style="color: #cbd5e1;">/</span>
+            <input style="font-size: 14px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 8px; width: 200px;" value="v3 - Concise Hebrew" />
+            <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 8px; font-size: 10px;">published</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button style="padding: 4px 10px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Clone as Draft</button>
+          </div>
+        </div>
+
+        <!-- Editor (read-only for published) -->
+        <div style="flex: 1; padding: 12px; display: flex; flex-direction: column;">
+          <div style="flex: 1; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 11px; padding: 12px; border-radius: 6px; line-height: 1.6; white-space: pre-wrap; overflow-y: auto; position: relative;">
+            <div style="position: absolute; top: 6px; right: 8px; background: #334155; color: #94a3b8; padding: 1px 6px; border-radius: 3px; font-size: 9px;">read-only</div>You are a customer support assistant for ZebraCRM.
+
+LANGUAGE RULE (HIGHEST PRIORITY): You MUST respond
+in the SAME language as the user's message. If the
+user writes in Hebrew, respond in Hebrew. If in
+English, respond in English.
+
+CRITICAL SCOPE DEFINITION:
+You ONLY answer questions about ZebraCRM (the CRM
+system, its features, troubleshooting, support,
+and how to use ZebraCRM for business operations).
+
+{question_titles_text}
+
+You have access to the following tools:
+1. bm25_tool: Search the knowledge base with a query.
+2. mcq_tool: Ask a multiple choice question.
+3. final_answer_tool: Provide the final answer.
+4. capability_explanation_tool: Explain capabilities.
+5. build_ticket_tool: Build a support ticket.</div>
+          <div style="margin-top: 6px; color: #94a3b8; font-size: 10px;">
+            Template variables: <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6; font-size: 10px;">{question_titles_text}</code>
+            <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6; font-size: 10px;">{kb_context}</code>
+            <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6; font-size: 10px;">{previous_queries}</code>
+            — injected at runtime
+          </div>
+        </div>
+
+        <!-- Inline metrics -->
+        <div style="padding: 10px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <strong style="font-size: 11px; color: #475569;">Performance Metrics</strong>
+            <span style="font-size: 9px; color: #94a3b8;">342 sessions since Mar 20</span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <div style="text-align: center; padding: 6px 14px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 18px; font-weight: 700; color: #1e293b;">12.3%</div>
+              <div style="font-size: 9px; color: #64748b;">IDK Rate</div>
+            </div>
+            <div style="text-align: center; padding: 6px 14px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 18px; font-weight: 700; color: #1e293b;">8.1%</div>
+              <div style="font-size: 9px; color: #64748b;">Escalation Rate</div>
+            </div>
+            <div style="text-align: center; padding: 6px 14px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 18px; font-weight: 700; color: #1e293b;">45s</div>
+              <div style="font-size: 9px; color: #64748b;">Avg Duration</div>
+            </div>
+            <div style="text-align: center; padding: 6px 14px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 18px; font-weight: 700; color: #1e293b;">2.4</div>
+              <div style="font-size: 9px; color: #64748b;">Avg Q/Session</div>
+            </div>
+            <div style="text-align: center; padding: 6px 14px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 18px; font-weight: 700; color: #1e293b;">1,247</div>
+              <div style="font-size: 9px; color: #64748b;">Avg Tokens</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== VIEW 2: Draft editing view ==================== -->
+<h3 style="margin-top: 2.5rem;">View 2: Editing a Draft</h3>
+<p class="subtitle">Draft and testing versions are editable, with Save and lifecycle action buttons</p>
+
+<div class="mockup">
+  <div class="mockup-header">Prompt Management — Editing Draft</div>
+  <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 13px;">
+    <div style="display: flex; min-height: 380px;">
+
+      <!-- Tree sidebar (collapsed for brevity) -->
+      <div style="width: 240px; border-right: 1px solid #e2e8f0; background: #fafbfc;">
+        <div style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">
+          <button style="width: 100%; padding: 6px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 11px;">+ New Version</button>
+        </div>
+        <div style="padding: 7px 12px; font-weight: 700; font-size: 11px; color: #1e293b; background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+          <span style="font-size: 9px;">▼</span> System Prompt
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7;">
+          v3 - Concise Hebrew <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">published</span>
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7;">
+          v4 - Strict scope <span style="background: #f59e0b; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">testing</span>
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; background: #eff6ff; border-left: 3px solid #3b82f6; border-bottom: 1px solid #eef2f7;">
+          v5 - New draft <span style="background: #e2e8f0; color: #64748b; padding: 0 4px; border-radius: 6px; font-size: 8px;">draft</span>
+        </div>
+      </div>
+
+      <!-- Detail panel -->
+      <div style="flex: 1; display: flex; flex-direction: column;">
+
+        <!-- Header bar with actions -->
+        <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #94a3b8; font-size: 11px;">System Prompt</span>
+            <span style="color: #cbd5e1;">/</span>
+            <input style="font-size: 14px; font-weight: 600; border: 1px solid #3b82f6; border-radius: 4px; padding: 3px 8px; width: 200px; outline: none; box-shadow: 0 0 0 2px rgba(59,130,246,0.2);" value="v5 - New draft" />
+            <span style="background: #e2e8f0; color: #64748b; padding: 2px 8px; border-radius: 8px; font-size: 10px;">draft</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Set as Testing</button>
+            <button style="padding: 4px 10px; background: #22c55e; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Publish</button>
+            <button style="padding: 4px 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Save</button>
+          </div>
+        </div>
+
+        <!-- Editable editor -->
+        <div style="flex: 1; padding: 12px; display: flex; flex-direction: column;">
+          <div style="flex: 1; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 11px; padding: 12px; border-radius: 6px; border: 2px solid #3b82f6; line-height: 1.6; white-space: pre-wrap; overflow-y: auto;">You are a customer support assistant for ZebraCRM.
+
+LANGUAGE RULE (HIGHEST PRIORITY): You MUST respond
+in the SAME language as the user's message.
+
+STRICT SCOPE DEFINITION:
+You ONLY answer questions about ZebraCRM.
+If a question is not clearly about ZebraCRM features,
+troubleshooting, or support, use capability_explanation
+immediately. Do NOT attempt to answer general questions.
+
+{question_titles_text}
+
+You have access to the following tools:
+1. bm25_tool: Search the knowledge base.
+2. mcq_tool: Ask a clarifying question.
+3. final_answer_tool: Provide the final answer.
+4. capability_explanation_tool: Explain capabilities.
+5. build_ticket_tool: Build a support ticket.
+<span style="opacity: 0.4;">|</span></div>
+          <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="color: #94a3b8; font-size: 10px;">
+              Variables: <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6; font-size: 10px;">{question_titles_text}</code>
+              <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6; font-size: 10px;">{kb_context}</code>
+              <code style="background: #f1f5f9; padding: 1px 4px; border-radius: 2px; color: #3b82f6; font-size: 10px;">{previous_queries}</code>
+            </div>
+            <div style="color: #94a3b8; font-size: 10px;">
+              <span style="color: #f59e0b;">Unsaved changes</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- No metrics for drafts without sessions -->
+        <div style="padding: 10px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+          <div style="color: #94a3b8; font-size: 11px; text-align: center; padding: 8px;">
+            No metrics yet — set as testing and use Test Agent to generate data
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== VIEW 3: Diff / Compare view ==================== -->
+<h3 style="margin-top: 2.5rem;">View 3: Comparing Two Versions (Shift+Click)</h3>
+<p class="subtitle">Shift+click a second version in the tree to see text diff and metrics side-by-side</p>
+
+<div class="mockup">
+  <div class="mockup-header">Prompt Management — Comparing v3 vs v4</div>
+  <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 13px;">
+    <div style="display: flex; min-height: 480px;">
+
+      <!-- Tree sidebar with two selected -->
+      <div style="width: 240px; border-right: 1px solid #e2e8f0; background: #fafbfc;">
+        <div style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">
+          <button style="width: 100%; padding: 6px; background: #6b7280; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Exit Compare</button>
+        </div>
+        <div style="padding: 7px 12px; font-weight: 700; font-size: 11px; color: #1e293b; background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+          <span style="font-size: 9px;">▼</span> System Prompt
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; background: #dbeafe; border-left: 3px solid #3b82f6; border-bottom: 1px solid #eef2f7;">
+          v3 - Concise Hebrew <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">published</span>
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; background: #dbeafe; border-left: 3px solid #3b82f6; border-bottom: 1px solid #eef2f7;">
+          v4 - Strict scope <span style="background: #f59e0b; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">testing</span>
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7; color: #94a3b8;">
+          v5 - New draft <span style="background: #e2e8f0; color: #64748b; padding: 0 4px; border-radius: 6px; font-size: 8px;">draft</span>
+        </div>
+        <div style="margin-top: auto; padding: 8px 10px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 9px; line-height: 1.4;">
+          2 versions selected for comparison
+        </div>
+      </div>
+
+      <!-- Compare detail panel -->
+      <div style="flex: 1; display: flex; flex-direction: column;">
+
+        <!-- Compare header -->
+        <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #fefce8;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-weight: 600; font-size: 13px;">Comparing:</span>
+            <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 8px; font-size: 10px;">v3 - Concise Hebrew (published)</span>
+            <span style="color: #94a3b8;">vs</span>
+            <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 8px; font-size: 10px;">v4 - Strict scope (testing)</span>
+          </div>
+        </div>
+
+        <!-- Side-by-side text diff -->
+        <div style="flex: 1; display: flex; gap: 0; overflow: hidden;">
+          <!-- Left: v3 (published) -->
+          <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0;">
+            <div style="padding: 6px 10px; background: #f0fdf4; border-bottom: 1px solid #e2e8f0; font-size: 10px; font-weight: 600; color: #16a34a;">
+              v3 - Concise Hebrew (published)
+            </div>
+            <div style="flex: 1; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 10px; padding: 10px; line-height: 1.6; white-space: pre-wrap; overflow-y: auto;">You are a customer support assistant
+for ZebraCRM.
+
+LANGUAGE RULE (HIGHEST PRIORITY): You
+MUST respond in the SAME language as
+the user's message. If the user writes
+in Hebrew, respond in Hebrew. If in
+English, respond in English.
+
+<span style="background: #dc2626; color: white; padding: 0 2px; border-radius: 2px;">CRITICAL SCOPE DEFINITION:</span>
+<span style="background: #dc2626; color: white; padding: 0 2px; border-radius: 2px;">You ONLY answer questions about ZebraCRM</span>
+<span style="background: #dc2626; color: white; padding: 0 2px; border-radius: 2px;">(the CRM system, its features,</span>
+<span style="background: #dc2626; color: white; padding: 0 2px; border-radius: 2px;">troubleshooting, support, and how to</span>
+<span style="background: #dc2626; color: white; padding: 0 2px; border-radius: 2px;">use ZebraCRM for business operations).</span>
+
+{question_titles_text}
+
+You have access to the following tools:
+1. bm25_tool: Search the knowledge base
+   with a query.
+2. mcq_tool: Ask a multiple choice
+   question.
+3. final_answer_tool: Provide the final
+   answer.
+4. capability_explanation_tool: Explain
+   capabilities.
+5. build_ticket_tool: Build a support
+   ticket.</div>
+          </div>
+
+          <!-- Right: v4 (testing) -->
+          <div style="flex: 1; display: flex; flex-direction: column;">
+            <div style="padding: 6px 10px; background: #fffbeb; border-bottom: 1px solid #e2e8f0; font-size: 10px; font-weight: 600; color: #d97706;">
+              v4 - Strict scope (testing)
+            </div>
+            <div style="flex: 1; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 10px; padding: 10px; line-height: 1.6; white-space: pre-wrap; overflow-y: auto;">You are a customer support assistant
+for ZebraCRM.
+
+LANGUAGE RULE (HIGHEST PRIORITY): You
+MUST respond in the SAME language as
+the user's message. If the user writes
+in Hebrew, respond in Hebrew. If in
+English, respond in English.
+
+<span style="background: #16a34a; color: white; padding: 0 2px; border-radius: 2px;">STRICT SCOPE DEFINITION:</span>
+<span style="background: #16a34a; color: white; padding: 0 2px; border-radius: 2px;">You ONLY answer questions about ZebraCRM.</span>
+<span style="background: #16a34a; color: white; padding: 0 2px; border-radius: 2px;">If a question is not clearly about</span>
+<span style="background: #16a34a; color: white; padding: 0 2px; border-radius: 2px;">ZebraCRM features, troubleshooting, or</span>
+<span style="background: #16a34a; color: white; padding: 0 2px; border-radius: 2px;">support, use capability_explanation</span>
+<span style="background: #16a34a; color: white; padding: 0 2px; border-radius: 2px;">immediately.</span>
+
+{question_titles_text}
+
+You have access to the following tools:
+1. bm25_tool: Search the knowledge base.
+2. mcq_tool: Ask a clarifying question.
+3. final_answer_tool: Provide the final
+   answer.
+4. capability_explanation_tool: Explain
+   capabilities.
+5. build_ticket_tool: Build a support
+   ticket.</div>
+          </div>
+        </div>
+
+        <!-- Side-by-side metrics comparison -->
+        <div style="padding: 12px 14px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+          <strong style="font-size: 11px; color: #475569;">Metrics Comparison</strong>
+          <div style="display: flex; gap: 0; margin-top: 8px;">
+
+            <!-- Metric columns -->
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0;">
+                  <th style="text-align: left; padding: 4px 8px; color: #64748b; font-weight: 500;">Metric</th>
+                  <th style="text-align: center; padding: 4px 8px; color: #16a34a; font-weight: 600;">v3 (published)</th>
+                  <th style="text-align: center; padding: 4px 8px; color: #d97706; font-weight: 600;">v4 (testing)</th>
+                  <th style="text-align: center; padding: 4px 8px; color: #64748b; font-weight: 500;">Diff</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 6px 8px;">IDK Rate</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">12.3%</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">9.8%</td>
+                  <td style="text-align: center; padding: 6px 8px; color: #16a34a; font-weight: 600;">-2.5%</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 6px 8px;">Escalation Rate</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">8.1%</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">5.2%</td>
+                  <td style="text-align: center; padding: 6px 8px; color: #16a34a; font-weight: 600;">-2.9%</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 6px 8px;">Avg Duration</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">45s</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">38s</td>
+                  <td style="text-align: center; padding: 6px 8px; color: #16a34a; font-weight: 600;">-7s</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 6px 8px;">Avg Q/Session</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">2.4</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">1.9</td>
+                  <td style="text-align: center; padding: 6px 8px; color: #f59e0b; font-weight: 600;">-0.5</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 8px;">Sessions</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">342</td>
+                  <td style="text-align: center; padding: 6px 8px; font-weight: 600;">28</td>
+                  <td style="text-align: center; padding: 6px 8px; color: #94a3b8; font-size: 10px;">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 8px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 10px; font-size: 10px; color: #92400e;">
+            Testing sample size is small (28 sessions). Consider more testing for statistical confidence.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== VIEW 4: Testing version with actions ==================== -->
+<h3 style="margin-top: 2.5rem;">View 4: Testing Version — Actions</h3>
+<p class="subtitle">A version in "testing" status is editable and shows Stop Test + Publish buttons</p>
+
+<div class="mockup">
+  <div class="mockup-header">Prompt Management — Testing Version</div>
+  <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 13px;">
+    <div style="display: flex; min-height: 200px;">
+
+      <!-- Simplified sidebar -->
+      <div style="width: 240px; border-right: 1px solid #e2e8f0; background: #fafbfc; padding-top: 40px;">
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; border-bottom: 1px solid #eef2f7;">
+          v3 - Concise Hebrew <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">published</span>
+        </div>
+        <div style="padding: 6px 12px 6px 28px; font-size: 11px; background: #eff6ff; border-left: 3px solid #3b82f6; border-bottom: 1px solid #eef2f7;">
+          v4 - Strict scope <span style="background: #f59e0b; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">testing</span>
+        </div>
+      </div>
+
+      <!-- Detail header with testing-specific actions -->
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #94a3b8; font-size: 11px;">System Prompt</span>
+            <span style="color: #cbd5e1;">/</span>
+            <input style="font-size: 14px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 4px; padding: 3px 8px; width: 200px;" value="v4 - Strict scope" />
+            <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 8px; font-size: 10px;">testing</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button style="padding: 4px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Stop Test</button>
+            <button style="padding: 4px 10px; background: #22c55e; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Publish</button>
+            <button style="padding: 4px 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Save</button>
+          </div>
+        </div>
+
+        <!-- Info banner -->
+        <div style="margin: 10px 14px 0; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 10px; font-size: 11px; color: #92400e; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 14px;">&#9888;</span>
+          This version is active on the <strong>Test Agent</strong> page only. Use Test Agent to try it out, then Publish when ready.
+        </div>
+
+        <div style="flex: 1; padding: 12px;">
+          <div style="height: 100%; background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 10px; padding: 10px; border-radius: 6px; border: 2px solid #f59e0b; line-height: 1.5; white-space: pre-wrap;">You are a customer support assistant...
+
+(editable)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== STATUS-ACTION SUMMARY ==================== -->
+<h3 style="margin-top: 2.5rem;">Action Buttons by Status</h3>
+<p class="subtitle">Summary of what actions are available for each version status</p>
+
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; font-family: system-ui, sans-serif; font-size: 13px;">
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+        <th style="text-align: left; padding: 10px 14px; font-size: 12px;">Status</th>
+        <th style="text-align: left; padding: 10px 14px; font-size: 12px;">Editable?</th>
+        <th style="text-align: left; padding: 10px 14px; font-size: 12px;">Actions</th>
+        <th style="text-align: left; padding: 10px 14px; font-size: 12px;">Metrics</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 8px 14px;"><span style="background: #e2e8f0; color: #64748b; padding: 2px 8px; border-radius: 8px; font-size: 11px;">draft</span></td>
+        <td style="padding: 8px 14px;">Yes</td>
+        <td style="padding: 8px 14px;">
+          <span style="background: #f59e0b; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">Set as Testing</span>
+          <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">Publish</span>
+          <span style="background: #3b82f6; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px;">Save</span>
+        </td>
+        <td style="padding: 8px 14px; color: #94a3b8; font-size: 11px;">None yet</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 8px 14px;"><span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 8px; font-size: 11px;">testing</span></td>
+        <td style="padding: 8px 14px;">Yes</td>
+        <td style="padding: 8px 14px;">
+          <span style="background: #ef4444; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">Stop Test</span>
+          <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px;">Publish</span>
+          <span style="background: #3b82f6; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px;">Save</span>
+        </td>
+        <td style="padding: 8px 14px; font-size: 11px;">Test Agent sessions only</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 8px 14px;"><span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 8px; font-size: 11px;">published</span></td>
+        <td style="padding: 8px 14px;">No (read-only)</td>
+        <td style="padding: 8px 14px;">
+          <span style="background: #6b7280; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px;">Clone as Draft</span>
+        </td>
+        <td style="padding: 8px 14px; font-size: 11px;">All production sessions</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 14px;"><span style="background: #d1d5db; color: #6b7280; padding: 2px 8px; border-radius: 8px; font-size: 11px;">archived</span></td>
+        <td style="padding: 8px 14px;">No (read-only)</td>
+        <td style="padding: 8px 14px;">
+          <span style="background: #6b7280; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px;">Clone as Draft</span>
+        </td>
+        <td style="padding: 8px 14px; font-size: 11px;">Historical data (when it was published)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== FLOW DIAGRAM ==================== -->
+<h3 style="margin-top: 2.5rem;">Prompt Lifecycle Flow</h3>
+<p class="subtitle">How a prompt version moves through statuses</p>
+
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; font-family: system-ui, sans-serif; text-align: center;">
+  <div style="display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+    <!-- Draft -->
+    <div style="background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 8px; padding: 12px 20px; text-align: center;">
+      <div style="font-weight: 700; font-size: 13px; color: #64748b;">Draft</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Edit freely</div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <div style="color: #f59e0b; font-size: 20px;">&#8594;</div>
+      <div style="font-size: 9px; color: #94a3b8;">Set as Testing</div>
+    </div>
+
+    <!-- Testing -->
+    <div style="background: #fffbeb; border: 2px solid #f59e0b; border-radius: 8px; padding: 12px 20px; text-align: center;">
+      <div style="font-weight: 700; font-size: 13px; color: #d97706;">Testing</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Test Agent only</div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <div style="color: #22c55e; font-size: 20px;">&#8594;</div>
+      <div style="font-size: 9px; color: #94a3b8;">Publish</div>
+    </div>
+
+    <!-- Published -->
+    <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 12px 20px; text-align: center;">
+      <div style="font-weight: 700; font-size: 13px; color: #16a34a;">Published</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">All users</div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <div style="color: #94a3b8; font-size: 20px;">&#8594;</div>
+      <div style="font-size: 9px; color: #94a3b8;">New version published</div>
+    </div>
+
+    <!-- Archived -->
+    <div style="background: #f9fafb; border: 2px solid #d1d5db; border-radius: 8px; padding: 12px 20px; text-align: center;">
+      <div style="font-weight: 700; font-size: 13px; color: #9ca3af;">Archived</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Read-only history</div>
+    </div>
+  </div>
+
+  <!-- Return arrows -->
+  <div style="margin-top: 12px; display: flex; justify-content: center; gap: 40px;">
+    <div style="font-size: 10px; color: #94a3b8;">
+      <span style="color: #ef4444;">&#8617;</span> Stop Test returns to <strong>Draft</strong>
+    </div>
+    <div style="font-size: 10px; color: #94a3b8;">
+      <span style="color: #6b7280;">&#8617;</span> Clone from Published/Archived creates new <strong>Draft</strong>
+    </div>
+  </div>
+
+  <!-- Shortcut -->
+  <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+    <div style="font-size: 10px; color: #94a3b8;">
+      <strong>Shortcut:</strong> Draft can be published directly (skipping Testing) if you're confident
+    </div>
+  </div>
+</div>

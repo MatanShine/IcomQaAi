@@ -4,6 +4,76 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from typing import Optional, List, Any
 from app.core.config import MODEL, settings
+import re
+import logging
+
+_utils_logger = logging.getLogger(__name__)
+
+# Unicode ranges for scripts that should NOT appear in Hebrew/English responses
+_FOREIGN_SCRIPT_RE = re.compile(
+    r'['
+    r'\u0400-\u052F'  # Cyrillic + Supplement
+    r'\u0600-\u06FF'  # Arabic
+    r'\u0750-\u077F'  # Arabic Supplement
+    r'\u08A0-\u08FF'  # Arabic Extended-A
+    r'\u0E00-\u0E7F'  # Thai
+    r'\u0E80-\u0EFF'  # Lao
+    r'\u1000-\u109F'  # Myanmar
+    r'\u3040-\u309F'  # Hiragana
+    r'\u30A0-\u30FF'  # Katakana
+    r'\u4E00-\u9FFF'  # CJK
+    r'\u0900-\u097F'  # Devanagari
+    r'\uAC00-\uD7AF'  # Hangul
+    r'\uFB50-\uFDFF'  # Arabic Presentation Forms-A
+    r'\uFE70-\uFEFF'  # Arabic Presentation Forms-B
+    r']+'
+)
+
+
+def has_foreign_script(text: str) -> bool:
+    """Check if text contains characters from unexpected scripts."""
+    return bool(text and _FOREIGN_SCRIPT_RE.search(text))
+
+
+def sanitize_response_language(text: str) -> str:
+    """Fix foreign-script words (Cyrillic, Arabic, Thai, etc.) in Hebrew/English text.
+
+    Re-prompts the LLM to replace foreign words with Hebrew equivalents.
+    Returns original text if no contamination detected.
+    """
+    if not text or not has_foreign_script(text):
+        return text
+
+    foreign_words = _FOREIGN_SCRIPT_RE.findall(text)
+    unique_foreign = list(dict.fromkeys(foreign_words))
+    _utils_logger.warning(
+        "Foreign script detected in LLM output: %s", unique_foreign
+    )
+
+    llm = create_llm(temperature=0.0)
+    fix_prompt = (
+        "The following text is in Hebrew but contains words in a different language. "
+        f"These are the foreign words: {unique_foreign}\n"
+        "Replace ONLY those words with their Hebrew equivalents. "
+        "Keep everything else exactly the same. "
+        "Return ONLY the corrected text.\n\n"
+        f"{text}"
+    )
+
+    try:
+        response = llm.invoke([HumanMessage(content=fix_prompt)])
+        cleaned = response.content.strip()
+        if not has_foreign_script(cleaned):
+            _utils_logger.info("Foreign script cleanup successful")
+            return cleaned
+        _utils_logger.warning("Cleanup still has foreign scripts, stripping words")
+    except Exception as e:
+        _utils_logger.warning("Foreign script cleanup LLM call failed: %s", e)
+        cleaned = text
+
+    # Last resort: remove tokens containing foreign scripts
+    tokens = cleaned.split()
+    return ' '.join(t for t in tokens if not _FOREIGN_SCRIPT_RE.search(t))
 
 
 def is_human_message(msg: Any) -> bool:

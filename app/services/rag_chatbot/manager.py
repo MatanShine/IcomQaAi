@@ -33,7 +33,7 @@ class RAGChatbot:
         """Process a chat message and return the response with metadata."""
 
         self.logger.debug("User message: %s", message)
-        retrieved = self.retriever.retrieve_contexts(message, history)
+        retrieved = self.retriever.retrieve_contexts(message)
         self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
         answer, answerId, prompt_tokens, completion_tokens = self.openai_client.chat(
@@ -44,7 +44,7 @@ class RAGChatbot:
 
     async def stream_chat(self, message: str, history: List[str]):
         self.logger.debug("User message: %s", message)
-        retrieved = self.retriever.retrieve_contexts(message, history)
+        retrieved = self.retriever.retrieve_contexts(message)
         self.logger.debug("Retrieved %d contexts.", len(retrieved))
         prompt = self.prompt_builder.build_prompt(history, message, retrieved)
         try:

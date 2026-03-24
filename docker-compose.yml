@@ -39,7 +39,7 @@ services:
         condition: service_healthy
     environment:
       PORT: 4001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-icomqaai}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-icomqaai}?connection_limit=10&pool_timeout=30&connect_timeout=30
     ports:
       - "4001:4001"
     volumes:

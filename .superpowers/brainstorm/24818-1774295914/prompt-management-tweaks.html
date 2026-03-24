@@ -1,0 +1,213 @@
+<h2>Design Tweaks Applied</h2>
+<p class="subtitle">Updated list ordering and variable highlighting</p>
+
+<!-- ==================== TWEAK 1: List ordering ==================== -->
+<h3>Tweak 1: Version List Ordering</h3>
+<p class="subtitle">Published first, testing second, then all others sorted by last edited (newest first)</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Before</div>
+    <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 12px;">
+      <div style="padding: 7px 12px; font-weight: 700; font-size: 11px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+        <span style="font-size: 9px;">▼</span> System Prompt
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7; color: #94a3b8;">
+        v1 - Initial <span style="background: #d1d5db; color: #6b7280; padding: 0 4px; border-radius: 6px; font-size: 8px;">archived</span>
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7; color: #94a3b8;">
+        v2 - Verbose <span style="background: #d1d5db; color: #6b7280; padding: 0 4px; border-radius: 6px; font-size: 8px;">archived</span>
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7;">
+        v3 - Concise Hebrew <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">published</span>
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7;">
+        v4 - Strict scope <span style="background: #f59e0b; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">testing</span>
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7;">
+        v5 - New draft <span style="background: #e2e8f0; color: #64748b; padding: 0 4px; border-radius: 6px; font-size: 8px;">draft</span>
+      </div>
+      <div style="padding: 8px 12px; color: #94a3b8; font-size: 9px;">Sorted by version number</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">After (Updated)</div>
+    <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 12px;">
+      <div style="padding: 7px 12px; font-weight: 700; font-size: 11px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+        <span style="font-size: 9px;">▼</span> System Prompt
+      </div>
+      <!-- Published always first -->
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7; background: #f0fdf4;">
+        v3 - Concise Hebrew <span style="background: #22c55e; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">published</span>
+        <span style="float: right; color: #94a3b8; font-size: 9px;">pinned</span>
+      </div>
+      <!-- Testing always second -->
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7; background: #fffdf5;">
+        v4 - Strict scope <span style="background: #f59e0b; color: white; padding: 0 4px; border-radius: 6px; font-size: 8px;">testing</span>
+        <span style="float: right; color: #94a3b8; font-size: 9px;">pinned</span>
+      </div>
+      <!-- Rest sorted by last edited -->
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7;">
+        v5 - New draft <span style="background: #e2e8f0; color: #64748b; padding: 0 4px; border-radius: 6px; font-size: 8px;">draft</span>
+        <span style="float: right; color: #c4c9d0; font-size: 9px;">edited 2h ago</span>
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7; color: #94a3b8;">
+        v2 - Verbose <span style="background: #d1d5db; color: #6b7280; padding: 0 4px; border-radius: 6px; font-size: 8px;">archived</span>
+        <span style="float: right; color: #c4c9d0; font-size: 9px;">Mar 15</span>
+      </div>
+      <div style="padding: 6px 12px 6px 24px; border-bottom: 1px solid #eef2f7; color: #94a3b8;">
+        v1 - Initial <span style="background: #d1d5db; color: #6b7280; padding: 0 4px; border-radius: 6px; font-size: 8px;">archived</span>
+        <span style="float: right; color: #c4c9d0; font-size: 9px;">Mar 1</span>
+      </div>
+      <div style="padding: 8px 12px; color: #16a34a; font-size: 9px;">Published > Testing > last edited</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TWEAK 2: Variable highlighting ==================== -->
+<h3 style="margin-top: 2.5rem;">Tweak 2: Variable Highlighting</h3>
+<p class="subtitle">Variables highlighted in editor text + color-coded list below with hover counts</p>
+
+<div class="mockup">
+  <div class="mockup-header">Editor with Variable Highlighting</div>
+  <div class="mockup-body" style="padding: 0; font-family: system-ui, sans-serif; font-size: 13px;">
+    <div style="display: flex; flex-direction: column;">
+
+      <!-- Header -->
+      <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #94a3b8; font-size: 11px;">System Prompt</span>
+          <span style="color: #cbd5e1;">/</span>
+          <strong style="font-size: 14px;">v5 - New draft</strong>
+          <span style="background: #e2e8f0; color: #64748b; padding: 2px 8px; border-radius: 8px; font-size: 10px;">draft</span>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button style="padding: 4px 10px; background: #f59e0b; color: white; border: none; border-radius: 4px; font-size: 10px;">Set as Testing</button>
+          <button style="padding: 4px 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; font-size: 10px;">Save</button>
+        </div>
+      </div>
+
+      <!-- Editor with highlighted variables -->
+      <div style="padding: 12px;">
+        <div style="background: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 11px; padding: 14px; border-radius: 6px; border: 2px solid #3b82f6; line-height: 1.8; white-space: pre-wrap; min-height: 260px;">You are a customer support assistant for ZebraCRM.
+
+LANGUAGE RULE (HIGHEST PRIORITY): You MUST respond
+in the SAME language as the user's message.
+
+CRITICAL SCOPE DEFINITION:
+You ONLY answer questions about ZebraCRM.
+
+Available topics in our knowledge base:
+<span style="background: #1e40af; color: #93c5fd; padding: 1px 4px; border-radius: 3px; border: 1px solid #3b82f6;">{question_titles_text}</span>
+
+You have access to the following tools:
+1. bm25_tool: Search the knowledge base.
+2. mcq_tool: Ask a clarifying question.
+3. final_answer_tool: Provide the final answer.
+4. capability_explanation_tool: Explain capabilities.
+5. build_ticket_tool: Build a support ticket.
+
+Context from knowledge base:
+<span style="background: #1e40af; color: #93c5fd; padding: 1px 4px; border-radius: 3px; border: 1px solid #3b82f6;">{kb_context}</span>
+
+Previous search queries in this session:
+<span style="background: #1e40af; color: #93c5fd; padding: 1px 4px; border-radius: 3px; border: 1px solid #3b82f6;">{previous_queries}</span>
+
+Remember: answer only from <span style="background: #1e40af; color: #93c5fd; padding: 1px 4px; border-radius: 3px; border: 1px solid #3b82f6;">{kb_context}</span> or history.</div>
+      </div>
+
+      <!-- Variable list below editor -->
+      <div style="padding: 8px 14px 14px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+        <div style="font-size: 10px; font-weight: 600; color: #475569; margin-bottom: 8px;">Template Variables</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+
+          <!-- Blue: used 1 time -->
+          <div style="position: relative; display: inline-block;">
+            <div style="background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; border: 1px solid #93c5fd; cursor: pointer;">
+              {question_titles_text}
+              <span style="display: inline-block; background: #3b82f6; color: white; border-radius: 50%; width: 14px; height: 14px; text-align: center; line-height: 14px; font-size: 8px; margin-left: 4px; vertical-align: middle;">1</span>
+            </div>
+          </div>
+
+          <!-- Yellow: used >1 time -->
+          <div style="position: relative; display: inline-block;">
+            <div style="background: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; border: 1px solid #fcd34d; cursor: pointer;">
+              {kb_context}
+              <span style="display: inline-block; background: #f59e0b; color: white; border-radius: 50%; width: 14px; height: 14px; text-align: center; line-height: 14px; font-size: 8px; margin-left: 4px; vertical-align: middle;">2</span>
+            </div>
+            <!-- Tooltip (shown on hover) -->
+            <div style="position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; z-index: 10;">
+              Used 2 times in prompt
+              <div style="position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 4px solid transparent; border-top-color: #1e293b;"></div>
+            </div>
+          </div>
+
+          <!-- Blue: used 1 time -->
+          <div style="position: relative; display: inline-block;">
+            <div style="background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; border: 1px solid #93c5fd; cursor: pointer;">
+              {previous_queries}
+              <span style="display: inline-block; background: #3b82f6; color: white; border-radius: 50%; width: 14px; height: 14px; text-align: center; line-height: 14px; font-size: 8px; margin-left: 4px; vertical-align: middle;">1</span>
+            </div>
+          </div>
+
+          <!-- Grey: not used -->
+          <div style="position: relative; display: inline-block;">
+            <div style="background: #f1f5f9; color: #94a3b8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; border: 1px solid #e2e8f0; cursor: pointer;">
+              {tool_usage_counts}
+              <span style="display: inline-block; background: #94a3b8; color: white; border-radius: 50%; width: 14px; height: 14px; text-align: center; line-height: 14px; font-size: 8px; margin-left: 4px; vertical-align: middle;">0</span>
+            </div>
+          </div>
+
+          <!-- Grey: not used -->
+          <div style="position: relative; display: inline-block;">
+            <div style="background: #f1f5f9; color: #94a3b8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; border: 1px solid #e2e8f0; cursor: pointer;">
+              {tool_limits}
+              <span style="display: inline-block; background: #94a3b8; color: white; border-radius: 50%; width: 14px; height: 14px; text-align: center; line-height: 14px; font-size: 8px; margin-left: 4px; vertical-align: middle;">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div style="margin-top: 8px; display: flex; gap: 16px; font-size: 9px; color: #94a3b8;">
+          <span><span style="display: inline-block; width: 8px; height: 8px; background: #94a3b8; border-radius: 2px; margin-right: 3px;"></span>Not used</span>
+          <span><span style="display: inline-block; width: 8px; height: 8px; background: #3b82f6; border-radius: 2px; margin-right: 3px;"></span>Used once</span>
+          <span><span style="display: inline-block; width: 8px; height: 8px; background: #f59e0b; border-radius: 2px; margin-right: 3px;"></span>Used multiple times</span>
+          <span>Hover for exact count</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Variable in-editor detail ==================== -->
+<h3 style="margin-top: 2rem;">Variable Marking Inside Editor — Close-up</h3>
+<p class="subtitle">Variables are detected and rendered with a distinct background so the user knows they'll be replaced at runtime</p>
+
+<div class="mockup">
+  <div class="mockup-header">Editor Close-up — Variable Detection</div>
+  <div class="mockup-body" style="padding: 16px; background: #1e293b; font-family: monospace; font-size: 13px; color: #e2e8f0; line-height: 2.2; white-space: pre-wrap;">Available topics in our knowledge base:
+<span style="background: #1e40af; color: #93c5fd; padding: 2px 6px; border-radius: 3px; border: 1px solid #3b82f6; cursor: pointer; position: relative;">&#8203;{question_titles_text}&#8203;<span style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: #475569; color: #e2e8f0; padding: 1px 6px; border-radius: 3px; font-size: 9px; white-space: nowrap;">variable - injected at runtime</span></span>
+
+Context from knowledge base:
+<span style="background: #7c4a1e; color: #fcd34d; padding: 2px 6px; border-radius: 3px; border: 1px solid #f59e0b; cursor: pointer;">&#8203;{kb_context}&#8203;</span>  <span style="color: #64748b; font-size: 10px;">&lt;-- yellow = appears 2x in prompt</span>
+
+Previous search queries:
+<span style="background: #1e40af; color: #93c5fd; padding: 2px 6px; border-radius: 3px; border: 1px solid #3b82f6; cursor: pointer;">&#8203;{previous_queries}&#8203;</span>
+
+Remember: answer only from <span style="background: #7c4a1e; color: #fcd34d; padding: 2px 6px; border-radius: 3px; border: 1px solid #f59e0b; cursor: pointer;">&#8203;{kb_context}&#8203;</span> or history.
+
+Not a variable: {some_random_text} <span style="color: #64748b; font-size: 10px;">&lt;-- not highlighted, not a known variable</span></div>
+</div>
+
+<div style="margin-top: 1.5rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-family: system-ui, sans-serif;">
+  <h4 style="margin: 0 0 8px; font-size: 13px;">How variable detection works:</h4>
+  <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #475569; line-height: 1.8;">
+    <li>Only <strong>known variables</strong> (registered in the system) get highlighted — random <code>{text}</code> is left plain</li>
+    <li>In-editor: variables get a <strong>colored background pill</strong> matching their usage count color</li>
+    <li><span style="background: #dbeafe; color: #1e40af; padding: 0 4px; border-radius: 2px; font-size: 11px;">Blue pill</span> = used exactly once</li>
+    <li><span style="background: #fef3c7; color: #92400e; padding: 0 4px; border-radius: 2px; font-size: 11px;">Yellow pill</span> = used more than once (the count badge shows exact number)</li>
+    <li>Variables below editor show the same colors + a <strong>count badge</strong> (hover for tooltip)</li>
+    <li>Clicking a variable in the list below could scroll/highlight its occurrences in the editor</li>
+  </ul>
+</div>

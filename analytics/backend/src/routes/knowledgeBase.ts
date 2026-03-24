@@ -48,6 +48,7 @@ knowledgeBaseRouter.get('/', async (req, res, next) => {
     }));
     res.json({ items: formattedItems });
   } catch (error) {
+    console.error('Error fetching knowledge base items:', error);
     next(error);
   }
 });
