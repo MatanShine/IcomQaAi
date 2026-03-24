@@ -7,6 +7,7 @@ export default defineConfig({
     host: true,          // 0.0.0.0
     port: 4173,
     strictPort: true,
+    allowedHosts: true,
     hmr: { clientPort: 4173 },
     proxy: {
       '/api': {
