@@ -15,12 +15,12 @@ import {
 const createSchema = z.object({
   prompt_type: z.string().min(1),
   name: z.string().min(1),
-  content: z.string().min(1),
+  content: z.string().default(''),
 });
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
-  content: z.string().min(1).optional(),
+  content: z.string().optional(),
 });
 
 const querySchema = z.object({
